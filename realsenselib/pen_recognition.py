@@ -12,11 +12,19 @@ def nothing(x):
     pass
 
 
-def main():
+def initialize_camera():
     # Create a pipeline
     pipeline = rs.pipeline()
     # Create a config and configure the pipeline to stream
     config = rs.config()
+    w = 848
+    h = 480
+    fps = 60
+    config.enable_stream(rs.stream.depth, w, h, rs.format.z16, fps)
+    config.enable_stream(rs.stream.color, w, h, rs.format.bgr8, fps)
+
+
+def main():
 
     # Create a pipeline
     pipeline = rs.pipeline()
