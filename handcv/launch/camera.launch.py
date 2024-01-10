@@ -10,7 +10,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             "use_rviz", default_value="true",
-            description="use rviz or not"
+            description="to use rviz, or not to use rviz, that is the question."
         ),
         Node(
             package="rviz2",
@@ -29,6 +29,9 @@ def generate_launch_description():
             executable="usb_cam_node_exe",
             arguments=["-p", " ", "framerate:=30.0", " ",
                        "-p", " ", "pixel_format:=yuyv"]
+        ),
+        Node(
+            package=""
         )
 
     ])

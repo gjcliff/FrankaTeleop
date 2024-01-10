@@ -1,0 +1,3 @@
+[1] https://wiki.ros.org/cv_bridge/Tutorials/ConvertingBetweenROSImagesAndOpenCVImagesPython
+[2] https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb#scrollTo=_JVO3rvPD4RN
+[3] https://developers.google.com/mediapipe/solutions/vision/hand_landmarker/python#live-stream_1
