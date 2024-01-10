@@ -10,8 +10,9 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/config', ['config/handcv.rviz']),
-        ('share/' + package_name + '/launch', ['launch/camera.launch.py'])
+        ('share/' + package_name + '/config',
+         ['config/handcv.rviz', 'config/hand_landmarker.task']),
+        ('share/' + package_name + '/launch', ['launch/camera.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -23,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            # 'handcv = handcv.handcv:main'
+            'handcv = handcv.handcv:main'
         ],
     },
 )

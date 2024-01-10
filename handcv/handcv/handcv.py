@@ -11,19 +11,21 @@ SUBSCRIBERS:
 
 """
 
-from rclpy import Node
+import rclpy
+from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
-from mediapipelib import MediaPipeRos as mps
+from .mediapipehelper import MediaPipeRos as mps
 
 import mediapipe as mp
+import numpy as np
 
 
 class HandCV(Node):
     def __init__(self):
-        super.__init__("handcv")
+        super().__init__("HandCV")
 
         # initialize CvBridge object
         self.bridge = CvBridge()
@@ -39,26 +41,50 @@ class HandCV(Node):
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
 
         # create timer
-        self.create_timer(0.01, self.timer_callback, self.timer_callback_group)
+        self.create_timer(1, self.timer_callback, self.timer_callback_group)
 
-        self.landmarker = mps.initialize_mediapipe()
+        self.landmarker = self.mps.initialize_mediapipe()
+        self.get_logger().info("got here1")
 
     def image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
         try:
+            self.get_logger().info("got here2")
             tmp_image = self.bridge.imgmsg_to_cv2(
-                msg, desired_encoding="passthrough")
-            self.mp_image = mp.Image(
+                msg, desired_encoding="rgb8")
+            self.get_logger().info(
+                f"cv2img type: {type(tmp_image)}, \n cv2img: {tmp_image.shape}")
+
+            mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB, data=tmp_image)
 
-            detection_result = self.landmarker.detect_async(self.mp_image)
-            annotated_image = mps.draw_landmarks_on_image(
-                rgb_image=self.mp_image, detection_result=detection_result)
+            self.get_logger().info(
+                f"mp_image type: {type(mp_image)}, \n mp_image shape: {np.asarray(mp_image).shape}")
+
+            detection_result = self.landmarker.detect(mp_image)
+            annotated_image = self.mps.draw_landmarks_on_image(
+                rgb_image=tmp_image, detection_result=detection_result)
 
             cv_image = self.bridge.cv2_to_imgmsg(
-                annotated_image, desired_encoding="passthrough")
+                annotated_image, encoding="rgb8")
 
             self.cv_image_pub.publish(cv_image)
 
         except CvBridgeError as e:
+            self.get_logger().info("got here error")
             self.get_logger().error(e)
+
+    def timer_callback(self):
+        self.get_logger().info("here")
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    handcv = HandCV()
+
+    rclpy.spin(handcv)
+
+
+if __name__ == '__main__':
+    main()

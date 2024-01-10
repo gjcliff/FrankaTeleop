@@ -7,6 +7,8 @@ import numpy as np
 import cv2
 import os
 
+from ament_index_python import get_package_share_directory
+
 
 class MediaPipeRos:
 
@@ -55,7 +57,7 @@ class MediaPipeRos:
     def initialize_mediapipe(self):
         # initialize the mediapipe task file's path
         self.model_path = os.path.join(
-            os.getcwd(), '../config/hand_landmarker.task')
+            get_package_share_directory('handcv'), 'config/hand_landmarker.task')
 
         # mediapipe variables
         BaseOptions = mp.tasks.BaseOptions
@@ -65,9 +67,14 @@ class MediaPipeRos:
 
         options = HandLandmarkerOptions(
             base_options=BaseOptions(self.model_path),
-            running_mode=VisionRunningMode.LIVE_STREAM,
+            num_hands=2,
+            running_mode=VisionRunningMode.IMAGE,
+            # result_callback=self.do_nothing # only include if in LIVE_STEAM vision running mode
         )
 
         landmarker = HandLandmarker.create_from_options(options)
 
         return landmarker
+
+    def do_nothing(self):
+        pass

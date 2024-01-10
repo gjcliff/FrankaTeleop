@@ -27,11 +27,16 @@ def generate_launch_description():
         Node(
             package="usb_cam",
             executable="usb_cam_node_exe",
-            arguments=["-p", " ", "framerate:=30.0", " ",
-                       "-p", " ", "pixel_format:=yuyv"]
+            arguments=["-p framerate:=30.0 -p pixel_format:=yuyv"]
         ),
         Node(
-            package=""
+            package="handcv",
+            executable="handcv",
+        ),
+        Node(
+            package="image_view",
+            executable="image_view",
+            arguments=["-r image:=/cv_image"]
         )
 
     ])
