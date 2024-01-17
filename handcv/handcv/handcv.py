@@ -31,7 +31,7 @@ class HandCV(Node):
 
         # initialize CvBridge object
         self.bridge = CvBridge()
-        
+
         # initialize MediaPipe Object
         self.mps = mps()
         self.landmarker = self.mps.initialize_mediapipe()
@@ -70,6 +70,12 @@ class HandCV(Node):
         depth_image = cv.resize(depth_image, (self.rs.w, self.rs.h), interpolation=cv.INTER_AREA)\
         
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=color_image)
+        detection_result = self.landmarker.detect(mp_image)
+        annotated_image = self.mps.draw_landmarks_on_image(
+            rgb_image=color_image, detection_result=detection_result)
+        
+        self.get_logger().info(f"detection_result: {detection_result}")
+        
 
         
 
@@ -102,7 +108,7 @@ class HandCV(Node):
             self.get_logger().error(e)
 
     def timer_callback(self):
-        self.get_logger().info("here")
+        self.create_real_sense_frames()
 
 
 def main(args=None):
