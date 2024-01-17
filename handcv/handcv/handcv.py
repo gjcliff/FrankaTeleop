@@ -18,9 +18,11 @@ from sensor_msgs.msg import Image
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
+from .realsensehelper import RealSenseRos as rsr
 
 import mediapipe as mp
 import numpy as np
+import cv2 as cv
 
 
 class HandCV(Node):
@@ -29,7 +31,11 @@ class HandCV(Node):
 
         # initialize CvBridge object
         self.bridge = CvBridge()
+        
+        # initialize MediaPipe Object
         self.mps = mps()
+        self.landmarker = self.mps.initialize_mediapipe()
+        
         # create callback groups
         self.timer_callback_group = MutuallyExclusiveCallbackGroup()
 
@@ -43,8 +49,29 @@ class HandCV(Node):
         # create timer
         self.create_timer(1, self.timer_callback, self.timer_callback_group)
 
-        self.landmarker = self.mps.initialize_mediapipe()
-        self.get_logger().info("got here1")
+        self.rs = rsr()
+        self.rs.initialize_rs()
+
+    def create_real_sense_frames(self):
+        frames = self.rs.pipeline.wait_for_frames
+        aligned_frames = self.rs.align.process(frames)
+
+        #aligned_depth_frame is a 640x480 depth image
+        aligned_color_frame = aligned_frames.get_color_frame()
+        aligned_depth_frame = aligned_frames.get_depth_frame()
+        aligned_depth_frame = self.rs.decimation_filter.process(aligned_depth_frame)
+        aligned_depth_frame = self.rs.spatial_filter.process(aligned_depth_frame)
+        aligned_depth_frame = self.rs.temporal_filter.process(aligned_depth_frame)
+        aligned_depth_frame = self.rs.hole.process(aligned_depth_frame)
+        aligned_depth_frame = self.rs.threshold_filter.process(aligned_depth_frame)
+
+        color_image = np.asanyarray(aligned_color_frame.get_data())
+        depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        depth_image = cv.resize(depth_image, (self.rs.w, self.rs.h), interpolation=cv.INTER_AREA)\
+        
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=color_image)
+
+        
 
     def image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
