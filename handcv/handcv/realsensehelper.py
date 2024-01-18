@@ -2,6 +2,9 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2 as cv
 
+from ament_index_python import get_package_share_directory
+import os
+
 class RealSenseRos:
     def __init__(self):
         self.pipeline = rs.pipeline()
@@ -19,7 +22,8 @@ class RealSenseRos:
         self.threshold_filter = rs.threshold_filter(0.1, 1.5)
     
     def initialize_rs(self):
-        self.config.enable_stream(rs.stream.depth,self.w, self.h, rs.format.bgr8, self.fps)
+        self.config.enable_stream(rs.stream.depth, self.w, self.h, rs.format.z16, self.fps)
+        self.config.enable_stream(rs.stream.color,self.w, self.h, rs.format.bgr8, self.fps)
         cfg = self.pipeline.start(self.config)
         profile = cfg.get_stream(rs.stream.color)
         self.intr = profile.as_video_stream_profile().get_intrinsics()
@@ -27,9 +31,9 @@ class RealSenseRos:
         device = cfg.get_device()
         advnc_mode = rs.rs400_advanced_mode(device)
         
-        with open("../config/high_density_present.json") as file:
-            json_config_str = file.read()
-            advnc_mode.load_json(json_config_str)
+        # with open(os.path.join(get_package_share_directory('handcv'), 'config/high_density_preset.json')) as file:
+        #     json_config_str = file.read()
+        #     advnc_mode.load_json(json_config_str)
         
         depth_sensor = device.first_depth_sensor()
         depth_scale = depth_sensor.get_depth_scale()

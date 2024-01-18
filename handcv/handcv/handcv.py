@@ -40,20 +40,20 @@ class HandCV(Node):
         self.timer_callback_group = MutuallyExclusiveCallbackGroup()
 
         # create subscribers
-        self.image_raw_sub = self.create_subscription(
-            Image, 'image_raw', self.image_raw_callback, 10)
+        # self.image_raw_sub = self.create_subscription(
+        #     Image, 'image_raw', self.image_raw_callback, 10)
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
 
         # create timer
-        self.create_timer(1, self.timer_callback, self.timer_callback_group)
+        self.create_timer(100, self.timer_callback, self.timer_callback_group)
 
         self.rs = rsr()
         self.rs.initialize_rs()
 
     def create_real_sense_frames(self):
-        frames = self.rs.pipeline.wait_for_frames
+        frames = self.rs.pipeline.wait_for_frames()
         aligned_frames = self.rs.align.process(frames)
 
         #aligned_depth_frame is a 640x480 depth image
@@ -62,17 +62,24 @@ class HandCV(Node):
         aligned_depth_frame = self.rs.decimation_filter.process(aligned_depth_frame)
         aligned_depth_frame = self.rs.spatial_filter.process(aligned_depth_frame)
         aligned_depth_frame = self.rs.temporal_filter.process(aligned_depth_frame)
-        aligned_depth_frame = self.rs.hole.process(aligned_depth_frame)
+        aligned_depth_frame = self.rs.hole_filter.process(aligned_depth_frame)
         aligned_depth_frame = self.rs.threshold_filter.process(aligned_depth_frame)
+        if not aligned_depth_frame or not aligned_color_frame:
+            return
 
         color_image = np.asanyarray(aligned_color_frame.get_data())
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
-        depth_image = cv.resize(depth_image, (self.rs.w, self.rs.h), interpolation=cv.INTER_AREA)\
+        depth_image = cv.resize(depth_image, (self.rs.w, self.rs.h), interpolation=cv.INTER_AREA)
         
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=color_image)
         detection_result = self.landmarker.detect(mp_image)
         annotated_image = self.mps.draw_landmarks_on_image(
             rgb_image=color_image, detection_result=detection_result)
+        
+        cv_image = self.bridge.cv2_to_imgmsg(
+                annotated_image, encoding="rgb8")
+        
+        self.cv_image_pub.publish(cv_image)
         
         self.get_logger().info(f"detection_result: {detection_result}")
         
@@ -82,17 +89,11 @@ class HandCV(Node):
     def image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
         try:
-            self.get_logger().info("got here2")
             tmp_image = self.bridge.imgmsg_to_cv2(
                 msg, desired_encoding="rgb8")
-            self.get_logger().info(
-                f"cv2img type: {type(tmp_image)}, \n cv2img: {tmp_image.shape}")
 
             mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB, data=tmp_image)
-
-            self.get_logger().info(
-                f"mp_image type: {type(mp_image)}, \n mp_image shape: {np.asarray(mp_image).shape}")
 
             detection_result = self.landmarker.detect(mp_image)
             annotated_image = self.mps.draw_landmarks_on_image(

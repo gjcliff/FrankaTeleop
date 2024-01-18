@@ -1,4 +1,4 @@
-#!/usr/bin/python
+
 
 # First import the library
 import pyrealsense2 as rs
