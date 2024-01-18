@@ -14,7 +14,9 @@ SUBSCRIBERS:
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+
 from sensor_msgs.msg import Image
+from visualization_msgs.msg import Marker
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
@@ -35,58 +37,28 @@ class HandCV(Node):
         # initialize MediaPipe Object
         self.mps = mps()
         self.landmarker = self.mps.initialize_mediapipe()
-        
+
         # create callback groups
         self.timer_callback_group = MutuallyExclusiveCallbackGroup()
 
+        # create timer
+        self.timer = self.create_timer(1/30, self.timer_callback, callback_group=self.timer_callback_group)
+
         # create subscribers
-        # self.image_raw_sub = self.create_subscription(
-        #     Image, 'image_raw', self.image_raw_callback, 10)
+        self.color_image_raw_sub = self.create_subscription(
+            Image, '/camera/color/image_raw', self.color_image_raw_callback, 10)
+        
+        self.depth_image_raw_sub = self.create_subscription(
+            Image, '/camera/depth/image_rect_raw', self.depth_image_raw_callback, 10)
 
         # create publishers
-        self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
+        self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10) 
+        self.marker_pub = self.create_publisher(Marker, 'visualization_marker', 10)
 
-        # create timer
-        self.create_timer(100, self.timer_callback, self.timer_callback_group)
+    def depth_image_raw_callback(self, msg):
+        depth_image = msg
 
-        self.rs = rsr()
-        self.rs.initialize_rs()
-
-    def create_real_sense_frames(self):
-        frames = self.rs.pipeline.wait_for_frames()
-        aligned_frames = self.rs.align.process(frames)
-
-        #aligned_depth_frame is a 640x480 depth image
-        aligned_color_frame = aligned_frames.get_color_frame()
-        aligned_depth_frame = aligned_frames.get_depth_frame()
-        aligned_depth_frame = self.rs.decimation_filter.process(aligned_depth_frame)
-        aligned_depth_frame = self.rs.spatial_filter.process(aligned_depth_frame)
-        aligned_depth_frame = self.rs.temporal_filter.process(aligned_depth_frame)
-        aligned_depth_frame = self.rs.hole_filter.process(aligned_depth_frame)
-        aligned_depth_frame = self.rs.threshold_filter.process(aligned_depth_frame)
-        if not aligned_depth_frame or not aligned_color_frame:
-            return
-
-        color_image = np.asanyarray(aligned_color_frame.get_data())
-        depth_image = np.asanyarray(aligned_depth_frame.get_data())
-        depth_image = cv.resize(depth_image, (self.rs.w, self.rs.h), interpolation=cv.INTER_AREA)
-        
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=color_image)
-        detection_result = self.landmarker.detect(mp_image)
-        annotated_image = self.mps.draw_landmarks_on_image(
-            rgb_image=color_image, detection_result=detection_result)
-        
-        cv_image = self.bridge.cv2_to_imgmsg(
-                annotated_image, encoding="rgb8")
-        
-        self.cv_image_pub.publish(cv_image)
-        
-        self.get_logger().info(f"detection_result: {detection_result}")
-        
-
-        
-
-    def image_raw_callback(self, msg):
+    def color_image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
         try:
             tmp_image = self.bridge.imgmsg_to_cv2(
@@ -96,6 +68,7 @@ class HandCV(Node):
                 image_format=mp.ImageFormat.SRGB, data=tmp_image)
 
             detection_result = self.landmarker.detect(mp_image)
+            self.get_logger().info(f"{detection_result}")
             annotated_image = self.mps.draw_landmarks_on_image(
                 rgb_image=tmp_image, detection_result=detection_result)
 
@@ -104,12 +77,11 @@ class HandCV(Node):
 
             self.cv_image_pub.publish(cv_image)
 
-        except CvBridgeError as e:
-            self.get_logger().info("got here error")
-            self.get_logger().error(e)
+        except CvBridgeError:
+            self.get_logger().error(CvBridgeError)
 
-    def timer_callback(self):
-        self.create_real_sense_frames()
+    def timer_callback():
+        pass
 
 
 def main(args=None):

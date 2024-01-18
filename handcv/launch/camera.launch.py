@@ -1,16 +1,30 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import DeclareLaunchArgument, Shutdown
+from launch.actions import DeclareLaunchArgument, Shutdown, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, EqualsSubstitution
 from launch.conditions import IfCondition
 
+from ament_index_python import get_package_share_directory
+import os
 
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             "use_rviz", default_value="true",
             description="to use rviz, or not to use rviz, that is the question."
+        ),
+        DeclareLaunchArgument(
+            "use_realsense", default_value="true",
+            description="Use the Realsense Camera. If 'false', will attempt to use usb camera or built in webcam"
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('realsense2_camera'),
+                    "launch/rs_launch.py")
+            )
         ),
         Node(
             package="rviz2",
@@ -21,22 +35,23 @@ def generate_launch_description():
             arguments=["-d",
                        PathJoinSubstitution(
                            [FindPackageShare(
-                               "handcv"), "config", "handcv.rviz"]
-                       )]
+                               "handcv"), "config", "handcv.rviz"])],
         ),
         Node(
             package="usb_cam",
             executable="usb_cam_node_exe",
+            condition=IfCondition(EqualsSubstitution(
+                LaunchConfiguration("use_realsense"), "false")),
             arguments=["-p framerate:=30.0 -p pixel_format:=yuyv"]
         ),
         Node(
             package="handcv",
             executable="handcv",
         ),
-        Node(
-            package="image_view",
-            executable="image_view",
-            arguments=["-r image:=/cv_image"]
-        )
+        # Node(
+        #     package="rqt_image_view",
+        #     executable="rqt_image_view",
+        #     arguments=["/camera/color/image_raw"],
+        # )
 
     ])

@@ -6,3 +6,5 @@
 [6] https://colab.research.google.com/github/googlesamples/mediapipe/blob/main/examples/hand_landmarker/python/hand_landmarker.ipynb#scrollTo=_JVO3rvPD4RN
 [7] https://developers.google.com/mediapipe/solutions/vision/hand_landmarker/python#image_2
 [8] https://developers.google.com/mediapipe/api/solutions/python/mp/Image
+[9] https://github.com/IntelRealSense/realsense-ros?tab=readme-ov-file#ros1-and-ros2-legacy
+[10] https://stackoverflow.com/questions/23020659/fastest-way-to-calculate-the-centroid-of-a-set-of-coordinate-tuples-in-python-wi
