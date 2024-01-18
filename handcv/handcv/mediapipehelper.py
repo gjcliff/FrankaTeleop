@@ -17,6 +17,7 @@ class MediaPipeRos:
         self.FONT_SIZE = 1
         self.FONT_THICKNESS = 1
         self.HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
+        self.landmarker = self.initialize_mediapipe()
 
     def draw_landmarks_on_image(self, rgb_image, detection_result):
         hand_landmarks_list = detection_result.hand_landmarks
