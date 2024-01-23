@@ -62,29 +62,38 @@ class HandCV(Node):
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="rgb8")
+            msg, desired_encoding="16UC1")  # if this doesn't work try 16U
+        self.depth_image = cv.flip(self.depth_image, 1)
 
     def color_image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
         self.color_image = self.bridge.imgmsg_to_cv2(
             msg, desired_encoding="rgb8")
+        self.color_image = cv.flip(self.color_image, 1)
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
-        coords = np.array([[landmark.x * np.shape(annotated_image)[1], landmark.y * np.shape(annotated_image)[0]]
-                           for landmark in detection_result.hand_landmarks])
-        # now perform the math on the numpy arrays. I think this is faster?
-        length = coords.shape[0]
-        sum_x = np.sum(coords[:, 0])
-        sum_y = np.sum(coords[:, 1])
-        centroid = np.array(sum_x/length, sum_y/length)
-        centroid = np.append(
-            centroid, self.depth_image[centroid[1], centroid[0]])
+        centroid = np.array([0, 0, 0])
+        if detection_result.hand_landmarks:
+            coords = np.array([[landmark.x * np.shape(annotated_image)[1], landmark.y * np.shape(annotated_image)[0]]
+                               for landmark in detection_result.hand_landmarks[0]])
+            # now perform the math on the numpy arrays. I think this is faster?
+            length = coords.shape[0]
+            sum_x = np.sum(coords[:, 0])
+            sum_y = np.sum(coords[:, 1])
+            centroid = np.array([sum_x/length, sum_y/length])
+            centroid = np.append(
+                centroid, self.depth_image[int(centroid[1]), int(centroid[0])])
 
-        text = f"(x: {np.round[centroid[0]]}, y: {np.round(centroid[1])}, z: {np.round(centroid[2])})"
+            text = f"(x: {np.round(centroid[0])}, y: {np.round(centroid[1])}, z: {np.round(centroid[2])})"
 
-        annotated_image = cv.putText(annotated_image, text, (
-            centroid[0]-100, centroid[1]+40), cv.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
+            annotated_image = cv.putText(annotated_image, text,
+                                         (int(centroid[0])-100,
+                                          int(centroid[1])+40),
+                                         cv.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
+
+            annotated_image = cv.circle(
+                annotated_image, (int(centroid[0]), int(centroid[1])), 10, (255, 255, 255), -1)
 
         cv_image = self.bridge.cv2_to_imgmsg(
             annotated_image, encoding="rgb8")

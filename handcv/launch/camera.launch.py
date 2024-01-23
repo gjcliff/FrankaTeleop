@@ -1,14 +1,14 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import DeclareLaunchArgument, Shutdown, IncludeLaunchDescription
+from launch.actions import OpaqueFunction, DeclareLaunchArgument, Shutdown, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, EqualsSubstitution
 from launch.conditions import IfCondition
 
 from ament_index_python import get_package_share_directory
 import os
-
+b
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -24,7 +24,12 @@ def generate_launch_description():
                 os.path.join(
                     get_package_share_directory('realsense2_camera'),
                     "launch/rs_launch.py")
-            )
+            ),
+            condition=IfCondition(EqualsSubstitution(
+                LaunchConfiguration("use_realsense"), "true")),
+            launch_arguments={"parameters": {"align_depth.enable": "true",
+                              "pointcloud.enable": "true",
+                                             "json_file_path": get_package_share_directory("handcv") + "config/high_density_preset.json"}.items()}.items(),
         ),
         Node(
             package="rviz2",
