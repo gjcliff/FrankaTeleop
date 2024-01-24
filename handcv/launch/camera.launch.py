@@ -8,7 +8,7 @@ from launch.conditions import IfCondition
 
 from ament_index_python import get_package_share_directory
 import os
-b
+
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -21,15 +21,20 @@ def generate_launch_description():
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(
-                    get_package_share_directory('realsense2_camera'),
-                    "launch/rs_launch.py")
+                PathJoinSubstitution([
+                    FindPackageShare('realsense2_camera'),
+                    'launch',
+                    'rs_launch.py'
+                ])
             ),
             condition=IfCondition(EqualsSubstitution(
                 LaunchConfiguration("use_realsense"), "true")),
-            launch_arguments={"parameters": {"align_depth.enable": "true",
-                              "pointcloud.enable": "true",
-                                             "json_file_path": get_package_share_directory("handcv") + "config/high_density_preset.json"}.items()}.items(),
+            launch_arguments={
+                "align_depth.enable": "true",
+                "pointcloud.enable": "true",
+                "json_file_path": get_package_share_directory("handcv") + "/config/high_density_preset.json",
+                "pointcloud.enable": "true",
+                }.items(),
         ),
         Node(
             package="rviz2",
