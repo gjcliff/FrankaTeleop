@@ -123,24 +123,22 @@ def generate_launch_description():
                        PathJoinSubstitution(
                            [FindPackageShare(
                                "handcv"), "config", "handcv.rviz"])],
-            parameters=[
-                # this entire Command() block is for the robot description
-                {"robot_description": Command(
-                    [FindExecutable(name='xacro'), ' ', PathJoinSubstitution([FindPackageShare("franka_description"), "robots", "panda_arm.urdf.xacro"]), ' hand:=true',
-                     ' robot_ip:=', LaunchConfiguration("robot_ip"),
-                     ' use_fake_hardware:=', LaunchConfiguration(
-                         "use_fake_hardware"),
-                     ' fake_sensor_commands:=', 'false'])},
-                {"robot_description_semantic": Command(
-                    [FindExecutable(name='xacro'), ' ', PathJoinSubstitution(
-                        [FindPackageShare("franka_moveit_config"), "srdf", "panda_arm.srdf.xacro"]), " hand:=true"]
-                )},
-                # OMPL mption planning pipeline config
-                ompl_planning_pipeline_config,
-                load_yaml('franka_moveit_config', 'config/kinematics.yaml')
-
-
-            ]
+            # parameters=[
+            #     # this entire Command() block is for the robot description
+            #     {"robot_description": Command(
+            #         [FindExecutable(name='xacro'), ' ', PathJoinSubstitution([FindPackageShare("franka_description"), "robots", "panda_arm.urdf.xacro"]), ' hand:=true',
+            #          ' robot_ip:=', LaunchConfiguration("robot_ip"),
+            #          ' use_fake_hardware:=', LaunchConfiguration(
+            #              "use_fake_hardware"),
+            #          ' fake_sensor_commands:=', 'false'])},
+            #     {"robot_description_semantic": Command(
+            #         [FindExecutable(name='xacro'), ' ', PathJoinSubstitution(
+            #             [FindPackageShare("franka_moveit_config"), "srdf", "panda_arm.srdf.xacro"]), " hand:=true"]
+            #     )},
+            #     # OMPL mption planning pipeline config
+            #     ompl_planning_pipeline_config,
+            #     load_yaml('franka_moveit_config', 'config/kinematics.yaml')
+            # ]
         ),
         Node(
             package="usb_cam",
@@ -152,6 +150,10 @@ def generate_launch_description():
         Node(
             package="handcv",
             executable="handcv",
+        ),
+        Node(
+            package="franka_teleop",
+            executable="franka_teleop"
         ),
         # Node(
         #     package="rqt_image_view",

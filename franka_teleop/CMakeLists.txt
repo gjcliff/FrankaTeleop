@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(franka_moveit)
+project(franka_teleop)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,10 +15,10 @@ find_package(moveit_ros_planning_interface REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(frankateleop src/franka_moveit.cpp)
+add_executable(franka_teleop src/franka_teleop.cpp)
 
 ament_target_dependencies(
-  frankateleop
+  franka_teleop
   rclcpp
   geometry_msgs
   std_srvs
@@ -26,7 +26,7 @@ ament_target_dependencies(
 )
 
 install(TARGETS
-frankateleop
+franka_teleop
 DESTINATION lib/${PROJECT_NAME}
 )
 

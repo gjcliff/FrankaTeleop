@@ -16,22 +16,23 @@ using moveit::planning_interface::MoveGroupInterface;
 
 /* blah blah blah cstring */
 
-class FrankaTeleop : public rclcpp::Node
+class FrankaTeleop : public rclcpp::Node, public moveit::planning_interface::MoveGroupInterface
 {
   public:
     FrankaTeleop()
     : Node("franka_teleop", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
-    move_group_interface(MoveGroupInterface(std::make_shared<FrankaTeleop>(), "thing")),
+    move_group_interface_(MoveGroupInterface(rclcpp::Node::make_shared(this), "teleop")),
     count_(0)
     {
       // lambda function to create and initialize a pose msg and set it equal to target_pose
-      move_group_interface.setPoseTarget(target_pose);
+      move_group_interface_.setPoseTarget(target_pose);
       service_ = this->create_service<std_srvs::srv::Empty>("set_and_execute_pose", std::bind(&FrankaTeleop::set_target_pose, this, _1, _2));
       timer_ = this->create_wall_timer(
       500ms, std::bind(&FrankaTeleop::timer_callback, this));
     }
 
   private:
+
     void set_target_pose(const std::shared_ptr<std_srvs::srv::Empty::Request> request,
                          std::shared_ptr<std_srvs::srv::Empty::Response> response)
     {
@@ -52,20 +53,20 @@ class FrankaTeleop : public rclcpp::Node
     {
       auto const [success,plan] = [&]{
           moveit::planning_interface::MoveGroupInterface::Plan msg;
-          auto const ok = static_cast<bool>(move_group_interface.plan(msg));
+          auto const ok = static_cast<bool>(move_group_interface_.plan(msg));
           return std::make_pair(ok, msg);
         }();
 
       if (success) {
         execute_target_pose(plan);
       } else {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "planning failed!");
+        RCLCPP_ERROR(rclcpp::get_logger("question-mark"), "planning failed!");
       }
     }
 
     void execute_target_pose(moveit::planning_interface::MoveGroupInterface::Plan plan)
     {
-      move_group_interface.execute(plan);
+      move_group_interface_.execute(plan);
     }
 
     void timer_callback()
@@ -74,8 +75,9 @@ class FrankaTeleop : public rclcpp::Node
     }
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr service_;
+    // MoveGroupInterface(std::make_unique<FrankaTeleop>(), "teleop");
     // technically not what the tutorial is doing, but whatever. I can't use auto to define class members
-    moveit::planning_interface::MoveGroupInterface move_group_interface;
+    moveit::planning_interface::MoveGroupInterface move_group_interface_; 
     geometry_msgs::msg::Pose target_pose;
     size_t count_;
 };
