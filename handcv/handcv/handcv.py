@@ -49,7 +49,7 @@ class HandCV(Node):
             Image, '/camera/color/image_raw', self.color_image_raw_callback, 10)
 
         self.depth_image_raw_sub = self.create_subscription(
-            Image, '/camera/depth/image_rect_raw', self.depth_image_raw_callback, 10)
+            Image, '/camera/aligned_depth_to_color/image_raw', self.depth_image_raw_callback, 10)
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
