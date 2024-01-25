@@ -62,20 +62,21 @@ class HandCV(Node):
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="16UC1")  # if this doesn't work try 16U
+            msg, desired_encoding="passthrough")
         self.depth_image = cv.flip(self.depth_image, 1)
 
     def color_image_raw_callback(self, msg):
         """Capture messages published on the /image_raw topic, and convert them to OpenCV images."""
         self.color_image = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="rgb8")
+            msg, desired_encoding="passthrough")
         self.color_image = cv.flip(self.color_image, 1)
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
         centroid = np.array([0, 0, 0])
         if detection_result.hand_landmarks:
-            coords = np.array([[landmark.x * np.shape(annotated_image)[1], landmark.y * np.shape(annotated_image)[0]]
+            coords = np.array([[landmark.x * np.shape(annotated_image)[1],
+                                landmark.y * np.shape(annotated_image)[0]]
                                for landmark in detection_result.hand_landmarks[0]])
             # now perform the math on the numpy arrays. I think this is faster?
             length = coords.shape[0]
