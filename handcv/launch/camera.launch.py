@@ -87,7 +87,7 @@ def generate_launch_description():
                 PathJoinSubstitution([
                     FindPackageShare('franka_moveit_config'),
                     'launch',
-                    'moveit.launch.py'
+                    'rviz.launch.py'
                 ])
             ),
             condition=IfCondition(EqualsSubstitution(
@@ -151,14 +151,8 @@ def generate_launch_description():
             package="handcv",
             executable="handcv",
         ),
-        # Node(
-        #     package="franka_teleop",
-        #     executable="franka_teleop"
-        # ),
-        # Node(
-        #     package="rqt_image_view",
-        #     executable="rqt_image_view",
-        #     arguments=["/camera/color/image_raw"],
-        # )
-
+        Node(
+            package="franka_teleop",
+            executable="franka_teleop"
+        ),
     ])

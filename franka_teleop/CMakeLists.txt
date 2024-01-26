@@ -10,7 +10,8 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
-find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit REQUIRED)
+find_package(moveit_visual_tools REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -22,7 +23,8 @@ ament_target_dependencies(
   rclcpp
   geometry_msgs
   std_srvs
-  moveit_ros_planning_interface
+  moveit
+  moveit_visual_tools
 )
 
 install(TARGETS

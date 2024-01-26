@@ -29,7 +29,7 @@ import cv2 as cv
 
 class HandCV(Node):
     def __init__(self):
-        super().__init__("HandCV")
+        super().__init__("handcv")
 
         # initialize CvBridge object
         self.bridge = CvBridge()
@@ -77,7 +77,13 @@ class HandCV(Node):
         if detection_result.hand_landmarks:
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]
-                               for landmark in detection_result.hand_landmarks[0]])
+                               for landmark in [detection_result.hand_landmarks[0][0],
+                                                detection_result.hand_landmarks[0][1],
+                                                detection_result.hand_landmarks[0][2],
+                                                detection_result.hand_landmarks[0][5],
+                                                detection_result.hand_landmarks[0][9],
+                                                detection_result.hand_landmarks[0][14],
+                                                detection_result.hand_landmarks[0][17]]])
             # now perform the math on the numpy arrays. I think this is faster?
             length = coords.shape[0]
             sum_x = np.sum(coords[:, 0])
