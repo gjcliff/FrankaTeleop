@@ -87,7 +87,7 @@ def generate_launch_description():
                 PathJoinSubstitution([
                     FindPackageShare('franka_moveit_config'),
                     'launch',
-                    'rviz.launch.py'
+                    'moveit.launch.py'
                 ])
             ),
             condition=IfCondition(EqualsSubstitution(
