@@ -12,6 +12,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(moveit REQUIRED)
 find_package(moveit_visual_tools REQUIRED)
+find_package(Eigen3)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -25,11 +26,22 @@ ament_target_dependencies(
   std_srvs
   moveit
   moveit_visual_tools
+  Eigen3
 )
 
 install(TARGETS
 franka_teleop
 DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY 
+config/
+DESTINATION share/${PROJECT_NAME}/config
+)
+
+install(DIRECTORY
+launch/
+DESTINATION share/${PROJECT_NAME}/launch
 )
 
 if(BUILD_TESTING)

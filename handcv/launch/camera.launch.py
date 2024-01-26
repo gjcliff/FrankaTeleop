@@ -7,6 +7,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (PathJoinSubstitution, LaunchConfiguration, EqualsSubstitution,
                                   Command, FindExecutable, PythonExpression)
 from launch.conditions import IfCondition
+from moveit_configs_utils import MoveItConfigsBuilder
 
 from ament_index_python import get_package_share_directory
 import yaml
@@ -82,37 +83,37 @@ def generate_launch_description():
                 "json_file_path": get_package_share_directory("handcv") + "/config/high_density_preset.json",
             }.items(),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([
-                    FindPackageShare('franka_moveit_config'),
-                    'launch',
-                    'moveit.launch.py'
-                ])
-            ),
-            condition=IfCondition(EqualsSubstitution(
-                LaunchConfiguration("use_fake_hardware"), "true")),
-            launch_arguments={
-                "robot_ip": "dont-care",
-                "use_fake_hardware": "true",
-                "use_rviz": "false",
-            }.items()
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([
-                    FindPackageShare('franka_moveit_config'),
-                    'launch',
-                    'rviz.launch.py'
-                ])
-            ),
-            condition=IfCondition(EqualsSubstitution(
-                LaunchConfiguration("use_fake_hardware"), "false")),
-            launch_arguments={
-                "robot_ip": "panda0.robot",
-                "use_fake_hardware": "false",
-            }.items()
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution([
+        #             FindPackageShare('franka_moveit_config'),
+        #             'launch',
+        #             'moveit.launch.py'
+        #         ])
+        #     ),
+        #     condition=IfCondition(EqualsSubstitution(
+        #         LaunchConfiguration("use_fake_hardware"), "true")),
+        #     launch_arguments={
+        #         "robot_ip": "dont-care",
+        #         "use_fake_hardware": "true",
+        #         "use_rviz": "false",
+        #     }.items()
+        # ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution([
+        #             FindPackageShare('franka_moveit_config'),
+        #             'launch',
+        #             'rviz.launch.py'
+        #         ])
+        #     ),
+        #     condition=IfCondition(EqualsSubstitution(
+        #         LaunchConfiguration("use_fake_hardware"), "false")),
+        #     launch_arguments={
+        #         "robot_ip": "panda0.robot",
+        #         "use_fake_hardware": "false",
+        #     }.items()
+        # ),
         Node(
             package="rviz2",
             executable="rviz2",
@@ -153,6 +154,13 @@ def generate_launch_description():
         ),
         Node(
             package="franka_teleop",
-            executable="franka_teleop"
+            executable="franka_teleop",
+            # parameters=[MoveItConfigsBuilder("moveit_resources_panda")
+            #             .robot_description(file_path=PathJoinSubstitution(
+            #                 [FindPackageShare("franka_moveit_config"), "config", "panda.urdf.xacro"]
+            #             ))
+            #             .trajectory_execution()
+            #             ]
+                        
         ),
     ])
