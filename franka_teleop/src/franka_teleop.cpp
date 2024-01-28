@@ -64,7 +64,7 @@ public:
 
     // finish initializing objects
     auto planning_components = std::make_shared<moveit_cpp::PlanningComponent>(
-      "move_group",
+      "panda_arm",
       moveit_cpp_ptr);
     auto robot_model_ptr = moveit_cpp_ptr->getRobotModel();
     RCLCPP_INFO(LOGGER, "loaded robot model hi");
