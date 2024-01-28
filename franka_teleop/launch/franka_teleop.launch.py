@@ -61,7 +61,7 @@ def generate_launch_description():
                 executable="franka_teleop",
                 output="screen",
                 parameters=[
-                    {
+                    { # robot description parameter
                         "robot_description": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -83,7 +83,7 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    {
+                    { # robot description semantic parameter
                         "robot_description_semantic": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -99,7 +99,7 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    {
+                    { # robot description kinematics parameter
                         "robot_description_kinematics": {
                             "panda_arm": {
                                 "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
@@ -112,8 +112,40 @@ def generate_launch_description():
                                 "kinematics_solver_timeout": 0.05,
                             },
                         },
+                    },
+                    # Trajectory Execution Functionality
+                    { # moveit_controllers
+                        "moveit_simple_controller_manager": load_yaml(
+                            'franka_moveit_config', 'config/panda_controllers.yaml'),
+                        "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
+                    },
+                    { # trajectory execution
+                        "moveit_manage_controllers": True,
+                        "trajectory_execution.allowed_execution_during_scaling": 1.2,
+                        "trajectory_execution.allowed_goal_duration_margin": 0.5,
+                        "trajectory_execution.allowed_start_tolerance": 0.01,
+                    },
+                    { # planning scene monitor parameters
+                        "publish_planning_scene": True,
+                        "publish_geometry_updates": True,
+                        "publish_state_updates": True,
+                        "publish_transforms_updates": True,
+                    },
+                    # Planning Functionality
+                    {
+                        "planning_pipelines": {"pipeline_names": ["ompl"]}
+                    },
+                    {
+                        "planning_scene_monitor_options": {
+                            "name": "planning_scene_monitor",
+                            "robot_description": "robot_description",
+                            "joint_state_topic": "/joint_states",
+                            "attached_collision_object_topic": "/moveit_cpp/planning_scene_monitor",
+                            "publish_planning_scene_topic": "/moveit_cpp/publish_planning_scene",
+                            "monitored_planning_scene_topic": "/moveit_cpp/monitored_planning_scene",
+                            "wait_for_initial_state_timeout": 10.0,
+                        }
                     }
-                    # load_yaml('franka_moveit_config', 'config/kinematics.yaml'),
                 ],
             ),
         ]
