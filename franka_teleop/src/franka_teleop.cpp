@@ -19,14 +19,12 @@
 
 using namespace std::chrono_literals;
 using std::placeholders::_1, std::placeholders::_2;
-namespace rvt = rviz_visual_tools;
 
-/* blah blah blah cstring */
 
 class FrankaTeleop : public rclcpp::Node
 {
   public:
-    FrankaTeleop() : Node("franka_teleop"),
+    FrankaTeleop() : Node("franka_teleop", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
     count_(0)
     {
      
@@ -44,9 +42,16 @@ class FrankaTeleop : public rclcpp::Node
 
     void initialize_moveit()
     {
+      // instantiate rviz_visual_tools
+      rviz_visual_tools::RvizVisualTools visual_tools("panda_link0", "planning_scene_franka", node_ptr_);
+      visual_tools.loadRemoteControl();
+      visual_tools.deleteAllMarkers();
+
       // instantiate RobotModelLoader object
       node_ptr_ = rclcpp::Node::shared_from_this();
+      RCLCPP_INFO(get_logger(), "loaded node pointer");
       robot_model_loader::RobotModelLoader robot_model_loader(node_ptr_);
+      RCLCPP_INFO(get_logger(), "loaded robot model");
       const moveit::core::RobotModelPtr& kinematic_model = robot_model_loader.getModel();
       RCLCPP_INFO(get_logger(), "Model frame: %s", kinematic_model->getModelFrame().c_str());
 
@@ -70,6 +75,7 @@ class FrankaTeleop : public rclcpp::Node
       joint_values[0] = 5.57;
       robot_state->setJointGroupPositions(joint_model_group, joint_values);
 
+
       /* Check whether any joint is outside its joint limits */
       RCLCPP_INFO_STREAM(get_logger(), "Current state is " << (robot_state->satisfiesBounds() ? "valid" : "not valid"));
 
@@ -86,7 +92,7 @@ class FrankaTeleop : public rclcpp::Node
       RCLCPP_INFO_STREAM(get_logger(), "Rotation: \n" << end_effector_state.rotation() << "\n");
       
       // Get the Inverse Kinematics
-      double timeout = 0.1;
+      double timeout = 1.0;
       bool found_ik = robot_state->setFromIK(joint_model_group, end_effector_state, timeout);
       // Now, we can print out the IK solution (if found):
       if (found_ik)
