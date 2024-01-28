@@ -64,11 +64,14 @@ public:
 
     // finish initializing objects
     auto planning_components = std::make_shared<moveit_cpp::PlanningComponent>(
-      "franka_teleop",
+      "move_group",
       moveit_cpp_ptr);
     auto robot_model_ptr = moveit_cpp_ptr->getRobotModel();
+    RCLCPP_INFO(LOGGER, "loaded robot model hi");
     auto robot_start_state = planning_components->getStartState();
+    RCLCPP_INFO(LOGGER, "loaded planning components into start state hi");
     auto joint_model_group_ptr = robot_model_ptr->getJointModelGroup(planning_group);
+    RCLCPP_INFO(LOGGER, "loaded jiont model group pointer");
 
     // setup rviz visualization tools
     // "franka_moveit_cpp" is the marker topic

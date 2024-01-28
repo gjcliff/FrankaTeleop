@@ -133,7 +133,7 @@ def generate_launch_description():
                     },
                     # Planning Functionality
                     {
-                        "planning_pipelines": {"pipeline_names": ["ompl"]}
+                        "planning_pipelines": {"pipeline_names": ["ompl"]},
                     },
                     {
                         "planning_scene_monitor_options": {

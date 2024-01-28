@@ -26,6 +26,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from moveit_configs_utils import MoveItConfigsBuilder
 import yaml
 
 
@@ -51,6 +52,11 @@ def generate_launch_description():
         fake_sensor_commands_parameter_name)
 
     # Command-line arguments
+
+    # moveit_config = (
+    #     MoveItConfigsBuilder("franka")
+    #     .moveit_cpp(file_path=get_package_share_directory("franka_teleop") + "/config/moveit_cpp.yaml")
+    # )
 
     config_joint_limits = load_yaml(
         'franka_moveit_config',
@@ -140,12 +146,17 @@ def generate_launch_description():
             robot_description,
             robot_description_semantic,
             kinematics_yaml,
-            ompl_planning_pipeline_config,
+            {
+                "planning_pipelines": {"pipeline_names": ["ompl"]},
+            },
+            {
+                "planning_plugin": "ompl_interface/OMPLPlanner"
+            },
             trajectory_execution,
             moveit_controllers,
             planning_scene_monitor_parameters,
             {"publish_robot_description_semantic": True},
-            joint_limits
+            joint_limits,
         ],
     )
 
@@ -163,40 +174,7 @@ def generate_launch_description():
         parameters=[
             robot_description,
             robot_description_semantic,
-            {
-                "planning_scene_monitor_options": {
-                    "name": "planning_scene_monitor",
-                    "robot_description": "robot_description",
-                    "joint_state_topic:": "/joint_states",
-                    "attached_collision_object_topic": "/moveit_cpp/planning_scene_monitor",
-                    "publish_planning_scene_topic": "/moveit_cpp/publish_planning_scene",
-                    "monitored_planning_scene_topic": "/moveit_cpp/monitored_planning_scene",
-                    "wait_for_initial_state_timeout": 10.0,
-            }},
-            {
-                "planning_pipelines": {
-                    "pipeline_names": ["ompl"]
-            }},
-            {
-                "planning_request_params": {
-                    "planning_attempts": 1,
-                    "planning_pipeline": "ompl",
-                    "max_velocity_scaling_factor": 1.0,
-                    "max_acceleration_scaling_factor": 1.0
-                }
-            },
-            {
-                'franka_teleop': {
-                    'planning_plugin': 'ompl_interface/OMPLPlanner',
-                    'request_adapters': 'default_planner_request_adapters/AddTimeOptimalParameterization '
-                                        'default_planner_request_adapters/ResolveConstraintFrames '
-                                        'default_planner_request_adapters/FixWorkspaceBounds '
-                                        'default_planner_request_adapters/FixStartStateBounds '
-                                        'default_planner_request_adapters/FixStartStateCollision '
-                                        'default_planner_request_adapters/FixStartStatePathConstraints',
-                    'start_state_max_bounds_error': 0.1,
-                },
-            },
+            ompl_planning_pipeline_config,
             kinematics_yaml,
         ],
         condition=IfCondition(LaunchConfiguration("use_rviz"))
