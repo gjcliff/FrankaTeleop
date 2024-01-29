@@ -1,10 +1,10 @@
 import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, Shutdown, DeclareLaunchArgument
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
-
+from launch.substitutions import PythonExpression, LaunchConfiguration
 
 def generate_launch_description():
     moveit_config = (
@@ -35,6 +35,7 @@ def generate_launch_description():
         package="rviz2",
         executable="rviz2",
         name="rviz2",
+        on_exit=Shutdown(),
         output="log",
         arguments=["-d", rviz_config_file],
         parameters=[
@@ -74,11 +75,17 @@ def generate_launch_description():
         output="both",
     )
 
+    panda_controller_arg = DeclareLaunchArgument(
+        "panda_controllers", default_value="panda_mock_controllers",
+        description="which panda_controllers file to use, panda_ros_controllers or\
+            panda_mock_controllers."
+        )
+
     # Load controllers
+    panda_controller = PythonExpression(["'\"panda_mock_controllers\" if ", LaunchConfiguration("panda_controllers"), " \" panda_ros_controllers\"'"])
     load_controllers = []
     for controller in [
-        "panda_arm_controller",
-        "panda_hand_controller",
+        panda_controller,
         "joint_state_broadcaster",
     ]:
         load_controllers += [

@@ -76,7 +76,7 @@ public:
     // setup rviz visualization tools
     // "franka_moveit_cpp" is the marker topic
     moveit_visual_tools::MoveItVisualTools visual_tools(node_ptr_, "panda_link0",
-      "franka_moveit_cpp",
+      "moveit_cpp_tutorial",
       moveit_cpp_ptr->getPlanningSceneMonitorNonConst());
     visual_tools.deleteAllMarkers();
     visual_tools.loadRemoteControl();
