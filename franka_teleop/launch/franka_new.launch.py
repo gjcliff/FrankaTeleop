@@ -19,7 +19,6 @@ def generate_launch_description():
     )
     # MoveItCpp demo executable
     moveit_cpp_node = Node(
-        name="moveit_cpp_tutorial",
         package="franka_teleop",
         executable="franka_teleop",
         output="screen",
@@ -75,17 +74,18 @@ def generate_launch_description():
         output="both",
     )
 
-    panda_controller_arg = DeclareLaunchArgument(
+    DeclareLaunchArgument(
         "panda_controllers", default_value="panda_mock_controllers",
         description="which panda_controllers file to use, panda_ros_controllers or\
             panda_mock_controllers."
-        )
+    )
 
     # Load controllers
-    panda_controller = PythonExpression(["'\"panda_mock_controllers\" if ", LaunchConfiguration("panda_controllers"), " \" panda_ros_controllers\"'"])
+    # panda_controller = PythonExpression(["'\"panda_mock_controllers\" if ", LaunchConfiguration("panda_controllers"), " else \"panda_ros_controllers\"'"])
     load_controllers = []
     for controller in [
-        panda_controller,
+        "panda_arm_controller",
+        "panda_hand_controller",
         "joint_state_broadcaster",
     ]:
         load_controllers += [
