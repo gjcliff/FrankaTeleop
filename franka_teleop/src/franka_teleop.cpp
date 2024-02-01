@@ -83,6 +83,9 @@ public:
     joint_model_group_ptr_ = robot_model_ptr_->getJointModelGroup(planning_group);
     RCLCPP_INFO(LOGGER, "loaded jiont model group pointer");
 
+    planning_pipeline_ = std::make_unique<planning_pipeline::PlanningPipelinePtr>(
+      new planning_pipeline::PlanningPipeline(robot_model_ptr_, shared_from_this(), "ompl"));
+
     // setup rviz visualization tools
     // "franka_moveit_cpp" is the marker topic
     visual_tools_ = std::make_unique<moveit_visual_tools::MoveItVisualTools>(
@@ -186,6 +189,7 @@ private:
   moveit::core::RobotModelConstPtr robot_model_ptr_;
   moveit::core::RobotStatePtr robot_start_state_;
   const moveit::core::JointModelGroup * joint_model_group_ptr_;
+  std::unique_ptr<planning_pipeline::PlanningPipelinePtr> planning_pipeline_;
 };
 
 int main(int argc, char * argv[])
