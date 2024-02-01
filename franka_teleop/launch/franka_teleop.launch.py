@@ -6,17 +6,13 @@ from launch.actions import (
     Shutdown,
     ExecuteProcess
 )
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     PathJoinSubstitution,
     LaunchConfiguration,
-    EqualsSubstitution,
     Command,
     FindExecutable,
-    PythonExpression,
 )
 from launch.conditions import IfCondition, UnlessCondition
-from moveit_configs_utils import MoveItConfigsBuilder
 
 from ament_index_python import get_package_share_directory
 import yaml
@@ -37,6 +33,8 @@ def load_yaml(package_name, file_path):
 
 
 def generate_launch_description():
+    help = load_yaml("franka_teleop", f"config/ompl_planning.yaml")
+    print(f"help: {help} ")
     load_controllers = []
     for controller in ['panda_arm_controller', 'joint_state_broadcaster']:
         load_controllers += [
@@ -379,15 +377,19 @@ def generate_launch_description():
                             "wait_for_initial_state_timeout": 10.0,
                         }
                     },
-                    PathJoinSubstitution(
-                        [
-                            FindPackageShare("franka_teleop"),
-                            "config",
-                            "ompl_planning.yaml"
-                        ]
-                    )
+                    load_yaml("franka_teleop", f"config/ompl_planning.yaml")
+                    # PathJoinSubstitution(
+                    #     [
+                    #         FindPackageShare("franka_teleop"),
+                    #         "config",
+                    #         "ompl_planning.yaml"
+                    #     ]
+                    # )
                 ],
             ),
         ]
         + load_controllers
     )
+
+
+generate_launch_description()
