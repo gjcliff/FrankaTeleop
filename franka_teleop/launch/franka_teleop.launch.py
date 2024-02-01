@@ -4,8 +4,7 @@ from launch_ros.substitutions import FindPackageShare
 from launch.actions import (
     DeclareLaunchArgument,
     Shutdown,
-    IncludeLaunchDescription,
-    SetLaunchConfiguration,
+    ExecuteProcess
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
@@ -16,7 +15,7 @@ from launch.substitutions import (
     FindExecutable,
     PythonExpression,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from moveit_configs_utils import MoveItConfigsBuilder
 
 from ament_index_python import get_package_share_directory
@@ -38,6 +37,16 @@ def load_yaml(package_name, file_path):
 
 
 def generate_launch_description():
+    load_controllers = []
+    for controller in ['panda_arm_controller', 'joint_state_broadcaster']:
+        load_controllers += [
+            ExecuteProcess(
+                cmd=['ros2 run controller_manager spawner {}'.format(
+                    controller)],
+                shell=True,
+                output='screen',
+            )
+        ]
     return LaunchDescription(
         [
             DeclareLaunchArgument(
@@ -55,6 +64,105 @@ def generate_launch_description():
                 "fake_sensor_commands",
                 default_value="false",
                 description="fake sensor commands. only valid when the fake_sensor_commands parameter is true",
+            ),
+            DeclareLaunchArgument(
+                "use_rviz",
+                default_value="true",
+                description="use rviz or not"
+            ),
+            Node(
+                package='controller_manager',
+                executable='ros2_control_node',
+                remappings=[('joint_states', 'franka/joint_states')],
+                output={
+                    'stdout': 'screen',
+                    'stderr': 'screen',
+                },
+                on_exit=Shutdown(),
+                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
+                parameters=[
+                    { # robot description parameter
+                        "robot_description": Command(
+                            [
+                                FindExecutable(name="xacro"),
+                                " ",
+                                PathJoinSubstitution(
+                                    [
+                                        FindPackageShare("franka_description"),
+                                        "robots",
+                                        "panda_arm.urdf.xacro",
+                                    ]
+                                ),
+                                " hand:=true",
+                                " robot_ip:=",
+                                LaunchConfiguration("robot_ip"),
+                                " use_fake_hardware:=",
+                                LaunchConfiguration("use_fake_hardware"),
+                                " fake_sensor_commands:=",
+                                LaunchConfiguration("fake_sensor_commands"),
+                            ]
+                        )
+                    },
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("franka_moveit_config"),
+                            "config",
+                            "panda_ros_controllers.yaml"
+                        ]
+                    )
+                ],
+            ),
+            Node(
+                package='controller_manager',
+                executable='ros2_control_node',
+                
+                remappings=[('joint_states', 'franka/joint_states')],
+                output={
+                    'stdout': 'screen',
+                    'stderr': 'screen',
+                },
+                on_exit=Shutdown(),
+                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+                parameters=[
+                    { # robot description parameter
+                        "robot_description": Command(
+                            [
+                                FindExecutable(name="xacro"),
+                                " ",
+                                PathJoinSubstitution(
+                                    [
+                                        FindPackageShare("franka_description"),
+                                        "robots",
+                                        "panda_arm.urdf.xacro",
+                                    ]
+                                ),
+                                " hand:=true",
+                                " robot_ip:=",
+                                LaunchConfiguration("robot_ip"),
+                                " use_fake_hardware:=",
+                                LaunchConfiguration("use_fake_hardware"),
+                                " fake_sensor_commands:=",
+                                LaunchConfiguration("fake_sensor_commands"),
+                            ]
+                        )
+                    },
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("franka_moveit_config"),
+                            "config",
+                            "pada_mock_controllers.yaml"
+                        ]
+                    )
+
+                ],
+            ),
+            Node(
+                package="joint_state_publisher",
+                executable="joint_state_publisher",
+                name="joint_state_publisher",
+                parameters=[
+                    {'source_list': ['franka/joint_states', 'panda_gripper/joint_states']}
+                ]
             ),
             Node(
                 package="robot_state_publisher",
@@ -96,6 +204,7 @@ def generate_launch_description():
                         FindPackageShare("franka_moveit_config"),"rviz",""
                     ]
                 )],
+                condition=IfCondition(LaunchConfiguration("use_rviz")), # did I actually implement this?
                 parameters=[
                     { # robot description parameter
                         "robot_description": Command(
@@ -266,4 +375,5 @@ def generate_launch_description():
                 ],
             ),
         ]
+        + load_controllers
     )
