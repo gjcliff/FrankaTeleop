@@ -79,30 +79,31 @@ def generate_launch_description():
                     'stderr': 'screen',
                 },
                 on_exit=Shutdown(),
-                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=UnlessCondition(
+                    LaunchConfiguration("use_fake_hardware")),
                 parameters=[
-                    { # robot description parameter
-                        "robot_description": Command(
-                            [
-                                FindExecutable(name="xacro"),
-                                " ",
-                                PathJoinSubstitution(
-                                    [
-                                        FindPackageShare("franka_description"),
-                                        "robots",
-                                        "panda_arm.urdf.xacro",
-                                    ]
-                                ),
-                                " hand:=true",
-                                " robot_ip:=",
-                                LaunchConfiguration("robot_ip"),
-                                " use_fake_hardware:=",
-                                LaunchConfiguration("use_fake_hardware"),
-                                " fake_sensor_commands:=",
-                                LaunchConfiguration("fake_sensor_commands"),
-                            ]
-                        )
-                    },
+                    # {  # robot description parameter
+                    #     "robot_description": Command(
+                    #         [
+                    #             FindExecutable(name="xacro"),
+                    #             " ",
+                    #             PathJoinSubstitution(
+                    #                 [
+                    #                     FindPackageShare("franka_description"),
+                    #                     "robots",
+                    #                     "panda_arm.urdf.xacro",
+                    #                 ]
+                    #             ),
+                    #             " hand:=true",
+                    #             " robot_ip:=",
+                    #             LaunchConfiguration("robot_ip"),
+                    #             " use_fake_hardware:=",
+                    #             LaunchConfiguration("use_fake_hardware"),
+                    #             " fake_sensor_commands:=",
+                    #             LaunchConfiguration("fake_sensor_commands"),
+                    #         ]
+                    #     )
+                    # },
                     PathJoinSubstitution(
                         [
                             FindPackageShare("franka_moveit_config"),
@@ -115,16 +116,17 @@ def generate_launch_description():
             Node(
                 package='controller_manager',
                 executable='ros2_control_node',
-                
+
                 remappings=[('joint_states', 'franka/joint_states')],
                 output={
                     'stdout': 'screen',
                     'stderr': 'screen',
                 },
                 on_exit=Shutdown(),
-                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=IfCondition(
+                    LaunchConfiguration("use_fake_hardware")),
                 parameters=[
-                    { # robot description parameter
+                    {  # robot description parameter
                         "robot_description": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -161,7 +163,8 @@ def generate_launch_description():
                 executable="joint_state_publisher",
                 name="joint_state_publisher",
                 parameters=[
-                    {'source_list': ['franka/joint_states', 'panda_gripper/joint_states']}
+                    {'source_list': ['franka/joint_states',
+                                     'panda_gripper/joint_states']}
                 ]
             ),
             Node(
@@ -170,7 +173,7 @@ def generate_launch_description():
                 name="robot_state_publisher",
                 output="both",
                 parameters=[
-                    { # robot description parameter
+                    {  # robot description parameter
                         "robot_description": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -201,12 +204,14 @@ def generate_launch_description():
                 output='log',
                 arguments=['-d', PathJoinSubstitution(
                     [
-                        FindPackageShare("franka_moveit_config"),"rviz",""
+                        FindPackageShare(
+                            "franka_moveit_config"), "rviz", "moveit.rviz"
                     ]
                 )],
-                condition=IfCondition(LaunchConfiguration("use_rviz")), # did I actually implement this?
+                # did I actually implement this?
+                condition=IfCondition(LaunchConfiguration("use_rviz")),
                 parameters=[
-                    { # robot description parameter
+                    {  # robot description parameter
                         "robot_description": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -228,14 +233,15 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    { # robot description semantic parameter
+                    {  # robot description semantic parameter
                         "robot_description_semantic": Command(
                             [
                                 FindExecutable(name="xacro"),
                                 " ",
                                 PathJoinSubstitution(
                                     [
-                                        FindPackageShare("franka_moveit_config"),
+                                        FindPackageShare(
+                                            "franka_moveit_config"),
                                         "srdf",
                                         "panda_arm.srdf.xacro",
                                     ]
@@ -244,7 +250,7 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    { # robot description kinematics parameter
+                    {  # robot description kinematics parameter
                         "robot_description_kinematics": {
                             "panda_arm": {
                                 "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
@@ -258,7 +264,7 @@ def generate_launch_description():
                             },
                         },
                     },
-                    { # planning scene monitor parameters
+                    {  # planning scene monitor parameters
                         "publish_planning_scene": True,
                         "publish_geometry_updates": True,
                         "publish_state_updates": True,
@@ -287,7 +293,7 @@ def generate_launch_description():
                 executable="franka_teleop",
                 output="screen",
                 parameters=[
-                    { # robot description parameter
+                    {  # robot description parameter
                         "robot_description": Command(
                             [
                                 FindExecutable(name="xacro"),
@@ -309,14 +315,15 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    { # robot description semantic parameter
+                    {  # robot description semantic parameter
                         "robot_description_semantic": Command(
                             [
                                 FindExecutable(name="xacro"),
                                 " ",
                                 PathJoinSubstitution(
                                     [
-                                        FindPackageShare("franka_moveit_config"),
+                                        FindPackageShare(
+                                            "franka_moveit_config"),
                                         "srdf",
                                         "panda_arm.srdf.xacro",
                                     ]
@@ -325,7 +332,7 @@ def generate_launch_description():
                             ]
                         )
                     },
-                    { # robot description kinematics parameter
+                    {  # robot description kinematics parameter
                         "robot_description_kinematics": {
                             "panda_arm": {
                                 "kinematics_solver": "kdl_kinematics_plugin/KDLKinematicsPlugin",
@@ -340,18 +347,18 @@ def generate_launch_description():
                         },
                     },
                     # Trajectory Execution Functionality
-                    { # moveit_controllers
+                    {  # moveit_controllers
                         "moveit_simple_controller_manager": load_yaml(
                             'franka_moveit_config', 'config/panda_controllers.yaml'),
                         "moveit_controller_manager": "moveit_simple_controller_manager/MoveItSimpleControllerManager",
                     },
-                    { # trajectory execution
+                    {  # trajectory execution
                         "moveit_manage_controllers": True,
                         "trajectory_execution.allowed_execution_during_scaling": 1.2,
                         "trajectory_execution.allowed_goal_duration_margin": 0.5,
                         "trajectory_execution.allowed_start_tolerance": 0.01,
                     },
-                    { # planning scene monitor parameters
+                    {  # planning scene monitor parameters
                         "publish_planning_scene": True,
                         "publish_geometry_updates": True,
                         "publish_state_updates": True,
