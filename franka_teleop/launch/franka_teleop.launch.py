@@ -378,7 +378,14 @@ def generate_launch_description():
                             "monitored_planning_scene_topic": "/moveit_cpp/monitored_planning_scene",
                             "wait_for_initial_state_timeout": 10.0,
                         }
-                    }
+                    },
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("franka_teleop"),
+                            "config",
+                            "ompl_planning.yaml"
+                        ]
+                    )
                 ],
             ),
         ]
