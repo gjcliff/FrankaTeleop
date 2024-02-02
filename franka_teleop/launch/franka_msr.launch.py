@@ -4,13 +4,15 @@ from launch_ros.actions import Node
 from launch.actions import ExecuteProcess, Shutdown, DeclareLaunchArgument
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
-from launch.substitutions import PythonExpression, LaunchConfiguration
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable, Command
+from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     moveit_config = (
-        MoveItConfigsBuilder("moveit_resources_panda_msr")
+        MoveItConfigsBuilder("msr_franka")
         .robot_description(file_path="config/panda.urdf.xacro")
-        .trajectory_execution(file_path="config/gripper_moveit_controllers.yaml")
+        .trajectory_execution(file_path="config/moveit_controllers.yaml")
         .planning_pipelines("ompl", ["ompl"])
         .moveit_cpp(
             file_path=get_package_share_directory("franka_teleop")
@@ -62,24 +64,30 @@ def generate_launch_description():
         parameters=[moveit_config.robot_description],
     )
 
+    DeclareLaunchArgument(name="use_fake_hardware", default="true",
+                          description="whether or not to use fake hardware.")
+
+
+
     # ros2_control using FakeSystem as hardware
     ros2_controllers_path = os.path.join(
-        get_package_share_directory("moveit_resources_panda_moveit_config"),
+        get_package_share_directory("msr_franka_moveit_config"),
         "config",
         "ros2_controllers.yaml",
     )
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        parameters=[moveit_config.robot_description, ros2_controllers_path],
+        condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+        parameters=[moveit_config.robot_description, PathJoinSubstitution()],
         output="both",
     )
 
-    DeclareLaunchArgument(
-        "panda_controllers", default_value="panda_mock_controllers",
-        description="which panda_controllers file to use, panda_ros_controllers or\
-            panda_mock_controllers."
-    )
+    # DeclareLaunchArgument(
+    #     "panda_controllers", default_value="panda_mock_controllers",
+    #     description="which panda_controllers file to use, panda_ros_controllers or\
+    #         panda_mock_controllers."
+    # )
 
     # Load controllers
     # panda_controller = PythonExpression(["'\"panda_mock_controllers\" if ", LaunchConfiguration("panda_controllers"), " else \"panda_ros_controllers\"'"])
