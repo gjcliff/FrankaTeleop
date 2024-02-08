@@ -20,7 +20,6 @@ from visualization_msgs.msg import Marker
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
-from .realsensehelper import RealSenseRos as rsr
 
 import mediapipe as mp
 import numpy as np

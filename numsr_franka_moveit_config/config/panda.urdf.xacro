@@ -3,7 +3,7 @@
     <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
 
     <!-- Import panda urdf file -->
-    <xacro:include filename="$(find franka_teleop)/config/panda_arm.urdf" />
+    <xacro:include filename="panda_arm.urdf" />
 
     <!-- Import control_xacro -->
     <xacro:include filename="panda.ros2_control.xacro" />
