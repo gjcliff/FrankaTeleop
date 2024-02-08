@@ -311,7 +311,7 @@
   <link name="panda_hand">
     <visual>
       <geometry>
-        <mesh filename="package://franka_description/meshes/visual/hand.dae"/>
+        <mesh filename="package://franka_teleop/meshes/visual/hand.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -361,7 +361,7 @@
   <link name="panda_leftfinger">
     <visual>
       <geometry>
-        <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
+        <mesh filename="package://franka_teleop/meshes/visual/finger.dae"/>
       </geometry>
     </visual>
   </link>
@@ -369,7 +369,7 @@
     <visual>
       <origin rpy="0 0 3.141592653589793" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
+        <mesh filename="package://franka_teleop/meshes/visual/finger.dae"/>
       </geometry>
     </visual>
   </link>

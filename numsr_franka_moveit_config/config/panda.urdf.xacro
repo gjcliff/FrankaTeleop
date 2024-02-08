@@ -6,9 +6,10 @@
     <xacro:include filename="panda_arm.urdf" />
 
     <!-- Import control_xacro -->
-    <xacro:include filename="panda.ros2_control.xacro" />
+    <!-- I edited this file by hand! -->
+    <xacro:include filename="$(find franka_description)/robots/panda_arm.ros2_control.xacro" />
 
 
-    <xacro:panda_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/>
+    <!-- <xacro:panda_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/> -->
 
 </robot>
