@@ -13,7 +13,10 @@ def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("numsr_franka")
         .robot_description(file_path="config/panda.urdf.xacro")
+        .robot_description_semantic(file_path="config/panda.srdf")
+        .robot_description_kinematics(file_path="config/kinematics.yaml")
         .trajectory_execution(file_path="config/panda_controllers.yaml")
+        .joint_limits(file_path="config/joint_limits.yaml")
         .planning_pipelines("ompl", ["ompl"])
         .moveit_cpp(
             file_path=get_package_share_directory("numsr_franka_moveit_config")
@@ -27,6 +30,7 @@ def generate_launch_description():
     load_controllers = []
     for controller in [
         "panda_arm_controller",
+        # "panda_gripper",
         "joint_state_broadcaster",
     ]:
         load_controllers += [
@@ -92,6 +96,7 @@ def generate_launch_description():
                 parameters=[
                     moveit_config.robot_description,
                     moveit_config.robot_description_semantic,
+                    moveit_config.robot_description_kinematics,
                 ],
             ),
             Node(

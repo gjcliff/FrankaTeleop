@@ -45,8 +45,8 @@ public:
       std::bind(&FrankaTeleop::test_service_callback, this, _1, _2));
 
     // create ROS timer
-    // timer_ = create_wall_timer(
-    // 500ms, std::bind(&FrankaTeleop::timer_callback, this));
+    timer_ = create_wall_timer(
+    500ms, std::bind(&FrankaTeleop::timer_callback, this));
 
     // this->initialize_moveit();
   }
@@ -94,39 +94,36 @@ public:
       moveit_cpp_ptr_->getPlanningSceneMonitorNonConst());
 
     visual_tools_->deleteAllMarkers();
-    visual_tools_->loadRemoteControl();
+    // visual_tools_->loadRemoteControl();
 
     Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
     text_pose.translation().z() = 0.5;
     visual_tools_->publishText(
       text_pose, "Po", rviz_visual_tools::WHITE,
       rviz_visual_tools::XLARGE);
-    visual_tools_->trigger();
+    // visual_tools_->trigger();
 
-    visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
+    // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
   }
 
 private:
-  // void timer_callback()
-  // {
-
-  // }
+  void timer_callback()
+  {
+    // RCLCPP_INFO(get_logger(), "help me");
+  }
 
   void test_service_callback(
-    const std::shared_ptr<std_srvs::srv::Empty::Request> request,
-    std::shared_ptr<std_srvs::srv::Empty::Response> response)
+    const std::shared_ptr<std_srvs::srv::Empty::Request>,
+    std::shared_ptr<std_srvs::srv::Empty::Response>)
   {
     RCLCPP_INFO(get_logger(), "help me");
   }
 
 
   void path_plan1_service(
-    const std::shared_ptr<std_srvs::srv::Empty::Request> request,
-    std::shared_ptr<std_srvs::srv::Empty::Response> response)
+    const std::shared_ptr<std_srvs::srv::Empty::Request>,
+    std::shared_ptr<std_srvs::srv::Empty::Response>)
   {
-    (void) request;
-    (void) response;
-
     // ### PLANNING ###
     // there are multiple ways to set the start and goals states of plans in moveit_cpp
     // example 1:
