@@ -3,7 +3,8 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /MarkerArray2
       Splitter Ratio: 0.5
     Tree Height: 389
   - Class: rviz_common/Selection
@@ -438,6 +439,22 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 0.1
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        Path: true
+        Sphere: true
+        Text: true
+        start_pose: true
+        target_pose: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /moveit_cpp_tutorial
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -525,4 +542,4 @@ Window Geometry:
     collapsed: true
   Width: 1850
   X: 70
-  Y: 188
+  Y: 27

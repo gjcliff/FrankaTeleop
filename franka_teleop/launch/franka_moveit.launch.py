@@ -140,7 +140,7 @@ def generate_launch_description():
     # Start the actual move_group node/action server
     run_move_group_node = Node(
         package='franka_teleop',
-        executable='franka_teleop',
+        executable='franka_teleop_node',
         output='screen',
         parameters=[
             robot_description,

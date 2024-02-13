@@ -101,7 +101,7 @@ def generate_launch_description():
             ),
             Node(
                 package="franka_teleop",
-                executable="franka_teleop",
+                executable="franka_teleop_node",
                 on_exit=Shutdown(),
                 output="screen",
                 parameters=[moveit_config.to_dict()],
