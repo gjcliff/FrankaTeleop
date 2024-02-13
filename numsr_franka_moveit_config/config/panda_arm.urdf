@@ -299,7 +299,7 @@
     </collision>
   </link>
   <joint name="panda_joint8" type="fixed">
-    <origin rpy="0 0 -0.7853981633974483" xyz="0 0 0.107"/>
+    <origin rpy="0 0 0" xyz="0 0 0.107"/>
     <parent link="panda_link7"/>
     <child link="panda_link8"/>
   </joint>

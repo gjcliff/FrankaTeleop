@@ -22,7 +22,6 @@
 using namespace std::chrono_literals;
 using std::placeholders::_1, std::placeholders::_2;
 
-
 class FrankaTeleop : public rclcpp::Node
 {
 public:
@@ -126,7 +125,7 @@ private:
     target_pose1.pose.position.x = request->xpos;
     target_pose1.pose.position.y = request->ypos;
     target_pose1.pose.position.z = request->zpos;
-    planning_components_->setGoal(target_pose1, "panda_link8");
+    planning_components_->setGoal(target_pose1, "panda_hand_tcp");
 
     // call PlanningComponents to compute the plan and visualize it
     plan_solution_ = planning_components_->plan();

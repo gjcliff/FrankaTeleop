@@ -13,7 +13,7 @@ def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("numsr_franka")
         .robot_description(file_path="config/panda.urdf.xacro")
-        .robot_description_semantic(file_path="config/panda.srdf")
+        .robot_description_semantic(file_path="config/panda_arm.srdf")
         .robot_description_kinematics(file_path="config/kinematics.yaml")
         .trajectory_execution(file_path="config/panda_controllers.yaml")
         .joint_limits(file_path="config/joint_limits.yaml")
