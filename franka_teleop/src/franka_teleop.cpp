@@ -51,9 +51,6 @@ public:
   {
     moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(
       shared_from_this());
-    // node_ptr_ = rclcpp::Node::shared_from_this();
-    moveit_cpp_ptr_ = std::make_shared<moveit_cpp::MoveItCpp>(
-      shared_from_this());
 
     static const rclcpp::Logger LOGGER = rclcpp::get_logger("franka_moveit_cpp");
     static const std::string planning_group = "panda_arm";
@@ -72,7 +69,7 @@ public:
 
     // finish initializing objects
     planning_components_ = std::make_shared<moveit_cpp::PlanningComponent>(
-      "panda_arm",
+      planning_group,
       moveit_cpp_ptr_);
     robot_model_ptr_ = moveit_cpp_ptr_->getRobotModel();
     robot_start_state_ = planning_components_->getStartState();
@@ -85,7 +82,7 @@ public:
       "moveit_cpp_tutorial",
       moveit_cpp_ptr_->getPlanningSceneMonitorNonConst());
 
-    visual_tools_->deleteAllMarkers();
+    // visual_tools_->deleteAllMarkers();
     // visual_tools_->loadRemoteControl();
 
     Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity(); text_pose.translation().z() = 0.5; visual_tools_->publishText( text_pose, "Po", rviz_visual_tools::WHITE,
