@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "franka_teleop/srv/detail/plan_path__struct.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/empty.hpp"
 #include "franka_teleop/srv/plan_path.hpp"
@@ -39,6 +40,10 @@ public:
     execute_path_service = create_service<std_srvs::srv::Empty>(
       "execute_path",
       std::bind(&FrankaTeleop::execute_path_callback, this, _1, _2));
+
+    plan_and_execute_path_service_ = create_service<franka_teleop::srv::PlanPath>(
+      "plan_and_execute_path",
+      std::bind(&FrankaTeleop::plan_and_execute_path_callback, this, _1, _2));
 
     // create ROS timer
     timer_ = create_wall_timer(
@@ -81,17 +86,70 @@ public:
       "moveit_cpp_tutorial",
       moveit_cpp_ptr_->getPlanningSceneMonitorNonConst());
 
-    // visual_tools_->deleteAllMarkers();
+    visual_tools_->deleteAllMarkers();
     // visual_tools_->loadRemoteControl();
 
     Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity(); text_pose.translation().z() = 0.5; visual_tools_->publishText( text_pose, "Po", rviz_visual_tools::WHITE,
       rviz_visual_tools::XLARGE);
-    // visual_tools_->trigger();
+    visual_tools_->trigger();
 
     // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
   }
 
 private:
+  void plan_and_execute_path_callback(
+      const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
+      std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
+  {
+    planning_components_->setStartStateToCurrentState();
+
+    // construct the goal of the plan using a PoseStamped message
+    geometry_msgs::msg::PoseStamped target_pose1;
+    target_pose1.header.frame_id = "panda_link0";
+    target_pose1.pose.orientation.x = request->xquat;
+    target_pose1.pose.orientation.y = request->yquat;
+    target_pose1.pose.orientation.z = request->zquat;
+    target_pose1.pose.orientation.w = request->wquat;
+    target_pose1.pose.position.x = request->xpos;
+    target_pose1.pose.position.y = request->ypos;
+    target_pose1.pose.position.z = request->zpos;
+    planning_components_->setGoal(target_pose1, "panda_hand_tcp");
+
+    // call PlanningComponents to compute the plan and visualize it
+    plan_solution_ = planning_components_->plan();
+
+    // check if PlanningComponents succeeded
+    // robot_start_state->getGlobalLinkTransform() is performing FK
+    // "start_pose" is the axis label
+    if (plan_solution_) {
+      // visualize the start pose in Rviz
+      visual_tools_->publishAxisLabeled(
+          robot_start_state_->getGlobalLinkTransform(
+            "panda_link8"), "start_pose");
+
+      // visualize the goal pose in Rviz
+      visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
+      visual_tools_->publishText(
+          text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
+          rviz_visual_tools::XLARGE);
+
+      // visualize the trajectory
+      visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
+      visual_tools_->trigger();
+
+      // uncomment the lines below if you want to execute the plan!
+      moveit_controller_manager::ExecutionStatus result = moveit_cpp_ptr_->execute(
+        plan_solution_.trajectory, CONTROLLERS);
+      
+      RCLCPP_INFO_STREAM(get_logger(), "Execution status: " << result.asString());
+
+      // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
+      // this is deleting all markers after the path has been executed
+      visual_tools_->deleteAllMarkers();
+      visual_tools_->trigger();
+    }
+    
+  }
   void execute_path_callback(
       const std::shared_ptr<std_srvs::srv::Empty::Request>,
       std::shared_ptr<std_srvs::srv::Empty::Response>)
@@ -169,6 +227,7 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Service<franka_teleop::srv::PlanPath>::SharedPtr plan_path_service_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr execute_path_service;
+  rclcpp::Service<franka_teleop::srv::PlanPath>::SharedPtr plan_and_execute_path_service_;
 
   // franka variables
   std::vector<std::string> CONTROLLERS{1, "panda_arm_controller"};
