@@ -7,7 +7,8 @@
   <maintainer email="gclifford@u.northwestern.edu">Graham Clifford</maintainer>
   <license>APLv2</license>
 
-  <exec_depend>mediapipelib</exec_depend>
+  <depend>mediapipelib</depend>
+  <depend>hand_interfaces</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

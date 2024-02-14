@@ -1,5 +1,5 @@
 """
-Find where a human's hand is using computer vision.
+Find the 3D pose of a human hand using computer vision.
 
 Using cv_bridge, take messages from the /image_raw topic and convert them
 into OpenCV images for mediapipe to use to figure out where a user's hand
@@ -17,6 +17,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker
+from geometry_msgs.msg import PoseStamped
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
@@ -38,6 +39,7 @@ class HandCV(Node):
 
         # create callback groups
         self.timer_callback_group = MutuallyExclusiveCallbackGroup()
+        self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
 
         # create timer
         self.timer = self.create_timer(
@@ -48,18 +50,21 @@ class HandCV(Node):
             Image, '/camera/color/image_raw', self.color_image_raw_callback, 10)
 
         self.depth_image_raw_sub = self.create_subscription(
-            Image, '/camera/aligned_depth_to_color/image_raw', self.depth_image_raw_callback, 10)
+            Image, '/camera/aligned_depth_to_color/image_raw', self.depth_image_raw_callback)
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
         self.marker_pub = self.create_publisher(
             Marker, 'visualization_marker', 10)
-
-        self.waypoint_client = self.create_client()
+        self.waypoint_pub = self.create_publisher(
+                PoseStamped, 'waypoint', 10)
 
         # intialize other variables
         self.color_image = None
         self.depth_image = None
+        self.waypoint = PointStamped() 
+        self.waypoint.orientation.x = 1
+        self.waypoint.orientation.w = 0
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
@@ -74,8 +79,7 @@ class HandCV(Node):
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
-        centroid = np.array([0, 0, 0])
-        if detection_result.hand_landmarks:
+        if len(detection_result.hand_landmarks) == 1:
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]
                                for landmark in [detection_result.hand_landmarks[0][0],
@@ -92,6 +96,10 @@ class HandCV(Node):
             centroid = np.array([sum_x/length, sum_y/length])
             centroid = np.append(
                 centroid, self.depth_image[int(centroid[1]), int(centroid[0])])
+
+            self.waypoint.x = centroid[0]
+            self.waypoint.y = centroid[1]
+            self.waypoint.z = centroid[2]
 
             text = f"(x: {np.round(centroid[0])}, y: {np.round(centroid[1])}, z: {np.round(centroid[2])})"
 
@@ -129,6 +137,9 @@ class HandCV(Node):
             cv_image, _ = self.process_depth_image(
                 annotated_image, detection_result)
             self.cv_image_pub.publish(cv_image)
+        
+        # publish the waypoint
+        self.waypoint_pub.publish(self.waypoint)
 
 
 def main(args=None):
