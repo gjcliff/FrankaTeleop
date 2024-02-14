@@ -22,3 +22,23 @@ $ sudo apt install ros-{$ROS_DISTRO}-moveit
 ## Necessary Repositories
 * Emika Franka Panda repository
     * TODO
+
+## Config Files
+### Fake Panda Config Files
+* panda_arm_real.urdf
+    * urdf for the real panda arm, needs a robot_ip parameter (handled inside the launch file)
+* panda_mock_controllers.yaml
+### Real Panda Config Files
+* panda_arm_fake.urdf
+    * urdf for the simulated panda arm.
+### Shared Panda Config Files
+* panda_controllers.yaml
+    * config for the moveit_simple_controller_manager
+* panda_arm.srdf
+* moveit_cpp.yaml
+* kinematics.yaml
+* moveit.rviz
+### Not Used
+* moveit_controllers.yaml
+arm_id:=panda robot_ip:=dont-care use_fake_hardware:=true
+* 
