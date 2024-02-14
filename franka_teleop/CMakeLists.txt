@@ -15,6 +15,7 @@ find_package(std_srvs REQUIRED)
 find_package(moveit REQUIRED)
 find_package(moveit_visual_tools REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_executable(franka_teleop_node src/franka_teleop.cpp)
 
@@ -26,6 +27,7 @@ ament_export_dependencies(rosidl_default_runtime)
 
 ament_target_dependencies(
   franka_teleop_node
+  Eigen3
   rclcpp
   geometry_msgs
   std_srvs

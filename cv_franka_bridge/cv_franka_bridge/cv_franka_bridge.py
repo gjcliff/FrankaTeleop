@@ -34,6 +34,11 @@ class CvFrankaBridge(Node):
         self.current_waypoint = PoseStamped()
         self.waypoints = []
         self.move_robot = False
+        self.ee_home = Pose()
+        self.ee_home.position.x = 0.306891
+        self.ee_home.position.y = 0.0
+        self.ee_home.position.z = 0.486882
+        self.ee_home.orientation.x = 1.0
 
     def get_transform(self, target_frame, source_frame):
         # i need to transform the points in the camera frame to points in the 
@@ -78,7 +83,9 @@ class CvFrankaBridge(Node):
             if(len(self.waypoint) >= 6):
                 # take the average of the last batch of waypoints
                 waypoint = PoseStamped()
+                waypoint.header.frame_id = "panda_link0"
                 waypoint.header.stamp = self.get_clock().now().to_msg()
+
                 for i in range(len(self.waypoints)):
                     waypoint.pose.position.x += self.waypoints[i].position.x
                     waypoint.pose.position.y += self.waypoints[i].position.y
@@ -103,6 +110,14 @@ class CvFrankaBridge(Node):
                 waypoint.pose.orientation.y -= self.offset.orientation.y
                 waypoint.pose.orientation.z -= self.offset.orientation.z
                 waypoint.pose.orientation.w -= self.offset.orientation.w
+
+                # figure out what the waypoint is in the robot's space frame
+                robot_waypoint = PoseStamped()
+                robot_waypoint = waypoint
+                robot_waypoint.pose.position.x += self.ee_home.position.x
+                robot_waypoint.pose.position.y += self.ee_home.position.y
+                robot_waypoint.pose.position.z += self.ee_home.position.z
+                # orientation was calculated earlier when calculating the waypoint
                         
                 # send the waypoint to the robot to execute
                 planpath_request = PlanPath.Request()
