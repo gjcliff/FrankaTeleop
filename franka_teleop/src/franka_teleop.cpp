@@ -120,23 +120,17 @@ private:
       moveit_cpp_ptr_->execute(plan_solution.trajectory, CONTROLLERS);
     }
   }
-  void plan_and_execute_path_callback(
+  std::shared_ptr<franka_teleop::srv::PlanPath::Response> plan_and_execute_path_callback(
       const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
-      std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
+      std::shared_ptr<franka_teleop::srv::PlanPath::Response> response)
   {
     planning_components_->setStartStateToCurrentState();
 
     // construct the goal of the plan using a PoseStamped message
-    geometry_msgs::msg::PoseStamped target_pose1;
-    target_pose1.header.frame_id = "panda_link0";
-    target_pose1.pose.orientation.x = request->xquat;
-    target_pose1.pose.orientation.y = request->yquat;
-    target_pose1.pose.orientation.z = request->zquat;
-    target_pose1.pose.orientation.w = request->wquat;
-    target_pose1.pose.position.x = request->xpos;
-    target_pose1.pose.position.y = request->ypos;
-    target_pose1.pose.position.z = request->zpos;
-    planning_components_->setGoal(target_pose1, "panda_hand_tcp");
+    geometry_msgs::msg::PoseStamped target_pose;
+    target_pose.header.frame_id = "panda_link0";
+    target_pose = request->waypoint;
+    planning_components_->setGoal(target_pose, "panda_hand_tcp");
 
     // call PlanningComponents to compute the plan and visualize it
     plan_solution_ = planning_components_->plan();
@@ -145,32 +139,15 @@ private:
     // robot_start_state->getGlobalLinkTransform() is performing FK
     // "start_pose" is the axis label
     if (plan_solution_) {
-      // visualize the start pose in Rviz
-      // visual_tools_->publishAxisLabeled(
-      //     robot_start_state_->getGlobalLinkTransform(
-      //       "panda_link8"), "start_pose");
-      //
-      // // visualize the goal pose in Rviz
-      // visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
-      // visual_tools_->publishText(
-      //     text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
-      //     rviz_visual_tools::XLARGE);
-      //
-      // // visualize the trajectory
-      // visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
-      // visual_tools_->trigger();
-
-      // uncomment the lines below if you want to execute the plan!
+      // execute the plan
       moveit_controller_manager::ExecutionStatus result = moveit_cpp_ptr_->execute(
         plan_solution_.trajectory, CONTROLLERS);
       
       RCLCPP_INFO_STREAM(get_logger(), "Execution status: " << result.asString());
 
-      // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
-      // this is deleting all markers after the path has been executed
-      // visual_tools_->deleteAllMarkers();
-      // visual_tools_->trigger();
     }
+
+    return response;
     
   }
   void execute_path_callback(
@@ -197,16 +174,16 @@ private:
     planning_components_->setStartStateToCurrentState();
 
     // construct the goal of the plan using a PoseStamped message
-    geometry_msgs::msg::PoseStamped target_pose1;
-    target_pose1.header.frame_id = "panda_link0";
-    target_pose1.pose.orientation.x = request->xquat;
-    target_pose1.pose.orientation.y = request->yquat;
-    target_pose1.pose.orientation.z = request->zquat;
-    target_pose1.pose.orientation.w = request->wquat;
-    target_pose1.pose.position.x = request->xpos;
-    target_pose1.pose.position.y = request->ypos;
-    target_pose1.pose.position.z = request->zpos;
-    planning_components_->setGoal(target_pose1, "panda_hand_tcp");
+    geometry_msgs::msg::PoseStamped target_pose;
+    target_pose.header.frame_id = "panda_link0";
+    target_pose.pose.orientation.x = request->waypoint.pose.orientation.x;
+    target_pose.pose.orientation.y = request->yquat;
+    target_pose.pose.orientation.z = request->zquat;
+    target_pose.pose.orientation.w = request->wquat;
+    target_pose.pose.position.x = request->xpos;
+    target_pose.pose.position.y = request->ypos;
+    target_pose.pose.position.z = request->zpos;
+    planning_components_->setGoal(target_pose, "panda_hand_tcp");
 
     // call PlanningComponents to compute the plan and visualize it
     plan_solution_ = planning_components_->plan();
@@ -221,7 +198,7 @@ private:
       //       "panda_link8"), "start_pose");
       //
       // // visualize the goal pose in Rviz
-      // visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
+      // visual_tools_->publishAxisLabeled(target_pose.pose, "target_pose");
       // visual_tools_->publishText(
       //     text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
       //     rviz_visual_tools::XLARGE);

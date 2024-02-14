@@ -20,6 +20,7 @@ add_executable(franka_teleop_node src/franka_teleop.cpp)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     "srv/PlanPath.srv"
+    DEPENDENCIES geometry_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
 

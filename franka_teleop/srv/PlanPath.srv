@@ -1,16 +1,2 @@
-# the x position to plan to
-float64 xpos 0
-# the y position to plan to
-float64 ypos 0
-# the z position to plan to
-float64 zpos 0
-
-# the x portion of the quaternion to plan to
-float64 xquat 0
-# the y portion of the quaternion to plan to
-float64 yquat 0
-# the z portion of the quaternion to plan to
-float64 zquat 0
-# the w portion of the quaternion to plan to
-float64 wquat 1
+geometry_msgs/PoseStamped waypoint
 ---

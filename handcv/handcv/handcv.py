@@ -62,9 +62,9 @@ class HandCV(Node):
         # intialize other variables
         self.color_image = None
         self.depth_image = None
-        self.waypoint = PointStamped() 
-        self.waypoint.orientation.x = 1
-        self.waypoint.orientation.w = 0
+        self.waypoint = PoseStamped() 
+        self.waypoint.pose.orientation.x = 1
+        self.waypoint.pose.orientation.w = 0
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
@@ -97,9 +97,9 @@ class HandCV(Node):
             centroid = np.append(
                 centroid, self.depth_image[int(centroid[1]), int(centroid[0])])
 
-            self.waypoint.x = centroid[0]
-            self.waypoint.y = centroid[1]
-            self.waypoint.z = centroid[2]
+            self.waypoint.pose.position.x = centroid[0]
+            self.waypoint.pose.position.y = centroid[1]
+            self.waypoint.pose.position.z = centroid[2]
 
             text = f"(x: {np.round(centroid[0])}, y: {np.round(centroid[1])}, z: {np.round(centroid[2])})"
 
@@ -139,6 +139,7 @@ class HandCV(Node):
             self.cv_image_pub.publish(cv_image)
         
         # publish the waypoint
+        self.waypoint.header.stamp = self.get_clock().now().to_msg()
         self.waypoint_pub.publish(self.waypoint)
 
 
