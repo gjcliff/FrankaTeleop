@@ -40,5 +40,3 @@ $ sudo apt install ros-{$ROS_DISTRO}-moveit
 * moveit.rviz
 ### Not Used
 * moveit_controllers.yaml
-arm_id:=panda robot_ip:=dont-care use_fake_hardware:=true
-* 
