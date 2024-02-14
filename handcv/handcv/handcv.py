@@ -55,6 +55,8 @@ class HandCV(Node):
         self.marker_pub = self.create_publisher(
             Marker, 'visualization_marker', 10)
 
+        self.waypoint_client = self.create_client()
+
         # intialize other variables
         self.color_image = None
         self.depth_image = None

@@ -1,6 +1,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <moveit/robot_state/conversions.h>
 #include <string>
 #include <vector>
 
@@ -45,6 +46,10 @@ public:
       "plan_and_execute_path",
       std::bind(&FrankaTeleop::plan_and_execute_path_callback, this, _1, _2));
 
+    ready_service_ = create_service<std_srvs::srv::Empty>(
+      "ready",
+      std::bind(&FrankaTeleop::ready_callback, this, _1, _2));
+
     // create ROS timer
     timer_ = create_wall_timer(
     500ms, std::bind(&FrankaTeleop::timer_callback, this));
@@ -81,22 +86,40 @@ public:
 
     // setup rviz visualization tools
     // "franka_moveit_cpp" is the marker topic
-    visual_tools_ = std::make_unique<moveit_visual_tools::MoveItVisualTools>(
-      shared_from_this(), "panda_link0",
-      "moveit_cpp_tutorial",
-      moveit_cpp_ptr_->getPlanningSceneMonitorNonConst());
-
-    visual_tools_->deleteAllMarkers();
-    // visual_tools_->loadRemoteControl();
-
-    Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity(); text_pose.translation().z() = 0.5; visual_tools_->publishText( text_pose, "Po", rviz_visual_tools::WHITE,
-      rviz_visual_tools::XLARGE);
-    visual_tools_->trigger();
+    // visual_tools_ = std::make_unique<moveit_visual_tools::MoveItVisualTools>(
+    //   shared_from_this(), "panda_link0",
+    //   "moveit_cpp_tutorial",
+    //   moveit_cpp_ptr_->getPlanningSceneMonitorNonConst());
+    //
+    // visual_tools_->deleteAllMarkers();
+    // // visual_tools_->loadRemoteControl();
+    //
+    // Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity(); text_pose.translation().z() = 0.5; visual_tools_->publishText( text_pose, "Po", rviz_visual_tools::WHITE,
+    //   rviz_visual_tools::XLARGE);
+    // visual_tools_->trigger();
 
     // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to start the demo");
   }
 
 private:
+  void ready_callback(
+      const std::shared_ptr<std_srvs::srv::Empty::Request>,
+      std::shared_ptr<std_srvs::srv::Empty::Response>)
+  {
+    planning_components_->setGoal("ready");
+    
+    auto plan_solution = planning_components_->plan();
+    if(plan_solution)
+    {
+      moveit::core::RobotState robot_state(robot_model_ptr_);
+      moveit::core::robotStateMsgToRobotState(plan_solution.start_state, robot_state);
+      // visual_tools_->publishAxisLabeled(robot_state.getGlobalLinkTransform("panda_link8"), "start_pose");
+      // visual_tools_->publishAxisLabeled(robot_start_state_->getGlobalLinkTransform("panda_link8"), "target_pose");
+      // visual_tools_->publishTrajectoryLine(plan_solution.trajectory, joint_model_group_ptr_);
+      // visual_tools_->trigger();
+      moveit_cpp_ptr_->execute(plan_solution.trajectory, CONTROLLERS);
+    }
+  }
   void plan_and_execute_path_callback(
       const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
       std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
@@ -123,19 +146,19 @@ private:
     // "start_pose" is the axis label
     if (plan_solution_) {
       // visualize the start pose in Rviz
-      visual_tools_->publishAxisLabeled(
-          robot_start_state_->getGlobalLinkTransform(
-            "panda_link8"), "start_pose");
-
-      // visualize the goal pose in Rviz
-      visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
-      visual_tools_->publishText(
-          text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
-          rviz_visual_tools::XLARGE);
-
-      // visualize the trajectory
-      visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
-      visual_tools_->trigger();
+      // visual_tools_->publishAxisLabeled(
+      //     robot_start_state_->getGlobalLinkTransform(
+      //       "panda_link8"), "start_pose");
+      //
+      // // visualize the goal pose in Rviz
+      // visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
+      // visual_tools_->publishText(
+      //     text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
+      //     rviz_visual_tools::XLARGE);
+      //
+      // // visualize the trajectory
+      // visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
+      // visual_tools_->trigger();
 
       // uncomment the lines below if you want to execute the plan!
       moveit_controller_manager::ExecutionStatus result = moveit_cpp_ptr_->execute(
@@ -145,8 +168,8 @@ private:
 
       // visual_tools_->prompt("Press 'next' in the RvizVisualToolsGui window to continue the demo");
       // this is deleting all markers after the path has been executed
-      visual_tools_->deleteAllMarkers();
-      visual_tools_->trigger();
+      // visual_tools_->deleteAllMarkers();
+      // visual_tools_->trigger();
     }
     
   }
@@ -193,20 +216,20 @@ private:
     // "start_pose" is the axis label
     if (plan_solution_) {
       // visualize the start pose in Rviz
-      visual_tools_->publishAxisLabeled(
-          robot_start_state_->getGlobalLinkTransform(
-            "panda_link8"), "start_pose");
-
-      // visualize the goal pose in Rviz
-      visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
-      visual_tools_->publishText(
-          text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
-          rviz_visual_tools::XLARGE);
-
-      // visualize the trajectory
-      visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
-      visual_tools_->trigger();
-
+      // visual_tools_->publishAxisLabeled(
+      //     robot_start_state_->getGlobalLinkTransform(
+      //       "panda_link8"), "start_pose");
+      //
+      // // visualize the goal pose in Rviz
+      // visual_tools_->publishAxisLabeled(target_pose1.pose, "target_pose");
+      // visual_tools_->publishText(
+      //     text_pose_, "setStartStateToCurrentState", rviz_visual_tools::WHITE,
+      //     rviz_visual_tools::XLARGE);
+      //
+      // // visualize the trajectory
+      // visual_tools_->publishTrajectoryLine(plan_solution_.trajectory, joint_model_group_ptr_);
+      // visual_tools_->trigger();
+      //
       // uncomment the lines below if you want to execute the plan!
       // bool blocking = true;
       // moveit_controller_manager::ExecutionStatus result = moveit_cpp_ptr_->execute(
@@ -228,6 +251,7 @@ private:
   rclcpp::Service<franka_teleop::srv::PlanPath>::SharedPtr plan_path_service_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr execute_path_service;
   rclcpp::Service<franka_teleop::srv::PlanPath>::SharedPtr plan_and_execute_path_service_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr ready_service_;
 
   // franka variables
   std::vector<std::string> CONTROLLERS{1, "panda_arm_controller"};

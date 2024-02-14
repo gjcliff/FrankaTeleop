@@ -5,7 +5,7 @@ from launch.actions import ExecuteProcess, Shutdown, DeclareLaunchArgument, Incl
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable, Command
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable, Command, AndSubstitution
 from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
@@ -58,6 +58,10 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(name="use_fake_hardware", default_value="true",
                                   description="whether or not to use fake hardware."),
+            DeclareLaunchArgument(name="use_rviz", default_value="true",
+                                  description="whether or not to use rviz."),
+            DeclareLaunchArgument(name="robot_ip", default_value="dont-care",
+                                  description="IP address of the robot"),
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
@@ -114,38 +118,38 @@ def generate_launch_description():
                 output="both",
                 parameters=[moveit_config_real.robot_description],
             ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2",
-                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
-                on_exit=Shutdown(),
-                output="log",
-                arguments=["-d", PathJoinSubstitution([
-                    FindPackageShare("franka_teleop"), "config", "moveit.rviz"
-                ])],
-                parameters=[
-                    moveit_config_fake.robot_description,
-                    moveit_config_fake.robot_description_semantic,
-                    moveit_config_fake.robot_description_kinematics,
-                ],
-            ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2",
-                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
-                on_exit=Shutdown(),
-                output="log",
-                arguments=["-d", PathJoinSubstitution([
-                    FindPackageShare("franka_teleop"), "config", "moveit.rviz"
-                ])],
-                parameters=[
-                    moveit_config_real.robot_description,
-                    moveit_config_real.robot_description_semantic,
-                    moveit_config_real.robot_description_kinematics,
-                ],
-            ),
+            # Node(
+            #     package="rviz2",
+            #     executable="rviz2",
+            #     name="rviz2",
+            #     condition=IfCondition(AndSubstitution(LaunchConfiguration("use_fake_hardware"), LaunchConfiguration("use_rviz"))),
+            #     on_exit=Shutdown(),
+            #     output="log",
+            #     arguments=["-d", PathJoinSubstitution([
+            #         FindPackageShare("franka_teleop"), "config", "moveit.rviz"
+            #     ])],
+            #     parameters=[
+            #         moveit_config_fake.robot_description,
+            #         moveit_config_fake.robot_description_semantic,
+            #         moveit_config_fake.robot_description_kinematics,
+            #     ],
+            # ),
+            # Node(
+            #     package="rviz2",
+            #     executable="rviz2",
+            #     name="rviz2",
+            #     condition=UnlessCondition(AndSubstitution(LaunchConfiguration("use_fake_hardware"), LaunchConfiguration("use_rviz"))),
+            #     on_exit=Shutdown(),
+            #     output="log",
+            #     arguments=["-d", PathJoinSubstitution([
+            #         FindPackageShare("franka_teleop"), "config", "moveit.rviz"
+            #     ])],
+            #     parameters=[
+            #         moveit_config_real.robot_description,
+            #         moveit_config_real.robot_description_semantic,
+            #         moveit_config_real.robot_description_kinematics,
+            #     ],
+            # ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([PathJoinSubstitution(
                     [FindPackageShare('franka_gripper'), 'launch', 'gripper.launch.py'])]),
