@@ -45,7 +45,12 @@ def generate_launch_description():
                 package="cv_franka_bridge",
                 executable="cv_franka_bridge",
                 output="screen"
-            )
+            ),
+            Node(
+                package='tf2_ros',
+                executable='static_transform_publisher',
+                arguments = ['--x', '0', '--y', '0', '--z', '0', '--yaw', '0', '--pitch', '0', '--roll', '0', '--frame-id', 'world', '--child-frame-id', 'camera_link']
+            ),
             # SetLaunchConfiguration(
             #     "robot_ip", PythonExpression(["'\"dont-care\" if ", LaunchConfiguration("use_fake_hardware"), " == \"true\" else \"panda0.robot\"'"])),
         ]

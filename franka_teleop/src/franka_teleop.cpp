@@ -2,6 +2,7 @@
 #include <functional>
 #include <memory>
 #include <moveit/robot_state/conversions.h>
+#include <rclcpp/logging.hpp>
 #include <string>
 #include <vector>
 #include <Eigen/Geometry>
@@ -126,6 +127,7 @@ private:
     geometry_msgs::msg::PoseStamped target_pose;
     target_pose.header.frame_id = "panda_link0";
     target_pose = request->waypoint;
+    RCLCPP_INFO_STREAM(get_logger(), "target pose: " << target_pose.pose.position.x << " " << target_pose.pose.position.y << " " << target_pose.pose.position.z << " " << target_pose.pose.orientation.x << " " << target_pose.pose.orientation.y << " " << target_pose.pose.orientation.z << " " << target_pose.pose.orientation.w);
     planning_components_->setGoal(target_pose, "panda_hand_tcp");
 
     // call PlanningComponents to compute the plan and visualize it
