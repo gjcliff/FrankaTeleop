@@ -50,7 +50,7 @@ class HandCV(Node):
             Image, '/camera/color/image_raw', self.color_image_raw_callback, 10)
 
         self.depth_image_raw_sub = self.create_subscription(
-            Image, '/camera/aligned_depth_to_color/image_raw', self.depth_image_raw_callback)
+            Image, '/camera/aligned_depth_to_color/image_raw', self.depth_image_raw_callback, 10)
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
@@ -63,8 +63,8 @@ class HandCV(Node):
         self.color_image = None
         self.depth_image = None
         self.waypoint = PoseStamped() 
-        self.waypoint.pose.orientation.x = 1
-        self.waypoint.pose.orientation.w = 0
+        self.waypoint.pose.orientation.x = 1.0
+        self.waypoint.pose.orientation.w = 0.0
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
@@ -79,6 +79,7 @@ class HandCV(Node):
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
+        centroid = np.array([0, 0, 0])
         if len(detection_result.hand_landmarks) == 1:
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]

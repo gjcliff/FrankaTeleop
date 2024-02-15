@@ -1,6 +1,6 @@
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Pose
-from franka_teleop import PlanPath
+from franka_teleop.srv import PlanPath
 
 from std_srvs.srv import Empty
 
@@ -10,14 +10,18 @@ import tf2_ros
 
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 class CvFrankaBridge(Node):
 
     def __init__(self):
         super().__init__('cv_franka_bridge')
 
+        # create callback groups
+        self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
+
         # create subscribers
-        self.waypoint_subscriber = self.create_subscription(PoseStamped, 'hand_pose', self.waypoint_callback)
+        self.waypoint_subscriber = self.create_subscription(PoseStamped, 'hand_pose', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
 
         # create clients
         self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
@@ -77,10 +81,11 @@ class CvFrankaBridge(Node):
         self.move_robot = True
         return response
 
-    def waypoint_callback(self, msg):
+    async def waypoint_callback(self, msg):
         if self.move_robot:
             self.waypoints.append(msg.pose)
             if(len(self.waypoint) >= 6):
+                self.get_logger().info("Received 6 waypoints")
                 # take the average of the last batch of waypoints
                 waypoint = PoseStamped()
                 waypoint.header.frame_id = "panda_link0"
@@ -122,12 +127,22 @@ class CvFrankaBridge(Node):
                 # send the waypoint to the robot to execute
                 planpath_request = PlanPath.Request()
                 planpath_request.waypoint = waypoint
-                self.plan_and_execute_client.call_async(planpath_request)
+                await self.plan_and_execute_client.call_async(planpath_request)
             else:
                 self.current_waypoint = msg
 
 
 
+def main(args=None):
+    rclpy.init(args=args)
+
+    cv_franka_bridge = CvFrankaBridge()
+
+    rclpy.spin(cv_franka_bridge)
+
+
+if __name__ == '__main__':
+    main()
 
 
 

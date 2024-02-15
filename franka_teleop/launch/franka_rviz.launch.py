@@ -43,15 +43,13 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(name="use_fake_hardware", default_value="false",
                                   description="whether or not to use fake hardware."),
-            DeclareLaunchArgument(name="use_rviz", default_value="true",
-                                  description="whether or not to use rviz."),
             DeclareLaunchArgument(name="robot_ip", default_value="panda0.robot",
                                   description="IP address of the robot"),
             Node(
                 package="rviz2",
                 executable="rviz2",
                 name="rviz2",
-                condition=IfCondition(AndSubstitution(LaunchConfiguration("use_fake_hardware"), LaunchConfiguration("use_rviz"))),
+                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
                 on_exit=Shutdown(),
                 output="log",
                 arguments=["-d", PathJoinSubstitution([
@@ -67,7 +65,7 @@ def generate_launch_description():
                 package="rviz2",
                 executable="rviz2",
                 name="rviz2",
-                condition=UnlessCondition(AndSubstitution(LaunchConfiguration("use_fake_hardware"), LaunchConfiguration("use_rviz"))),
+                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
                 on_exit=Shutdown(),
                 output="log",
                 arguments=["-d", PathJoinSubstitution([
