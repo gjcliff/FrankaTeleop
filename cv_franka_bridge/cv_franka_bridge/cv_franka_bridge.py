@@ -26,6 +26,7 @@ class CvFrankaBridge(Node):
 
         # create clients
         self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
+        self.waypoint_client = self.create_client(PlanPath, 'teleop_service')
 
         # create services
         self.begin_teleoperation_service = self.create_service(Empty, 'begin_teleop', self.begin_teleoperation_callback)
@@ -127,17 +128,16 @@ class CvFrankaBridge(Node):
             robot_waypoint = PoseStamped()
             robot_waypoint.header.frame_id = "panda_link0"
             robot_waypoint.header.stamp = self.get_clock().now().to_msg()
-            robot_waypoint.pose.position.x = waypoint.pose.position.z + self.ee_home.pose.position.x
-            robot_waypoint.pose.position.y = -waypoint.pose.position.x + self.ee_home.pose.position.y
-            robot_waypoint.pose.position.z = -waypoint.pose.position.y + self.ee_home.pose.position.z
+            robot_waypoint.pose.position.x = waypoint.pose.position.z #+ self.ee_home.pose.position.x
+            robot_waypoint.pose.position.y = -waypoint.pose.position.x #+ self.ee_home.pose.position.y
+            robot_waypoint.pose.position.z = -waypoint.pose.position.y #+ self.ee_home.pose.position.z
             robot_waypoint.pose.orientation.x = 1.0
             robot_waypoint.pose.orientation.w = 0.0
-            # self.get_logger().info(f"ee_home: {self.ee_home.pose.position.x}, {self.ee_home.pose.position.y}, {self.ee_home.pose.position.z}")
-            # self.get_logger().info(f"robot waypoint: {robot_waypoint.pose.position.x}, {robot_waypoint.pose.position.y}, {robot_waypoint.pose.position.z}\n")
+
             # orientation was calculated earlier when calculating the waypoint
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_waypoint
-            future = self.plan_and_execute_client.call_async(planpath_request)
+            future = self.waypoint_client.call_async(planpath_request)
         else:
             self.current_waypoint = msg
 

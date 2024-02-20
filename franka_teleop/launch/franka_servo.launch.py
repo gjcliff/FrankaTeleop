@@ -129,22 +129,22 @@ def generate_launch_description():
                 output="both",
                 parameters=[moveit_config_real.robot_description],
             ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2",
-                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
-                on_exit=Shutdown(),
-                output="log",
-                arguments=["-d", PathJoinSubstitution([
-                    FindPackageShare("franka_teleop"), "config", "servo.rviz"
-                ])],
-                parameters=[
-                    moveit_config_fake.robot_description,
-                    moveit_config_fake.robot_description_semantic,
-                    moveit_config_fake.robot_description_kinematics,
-                ],
-            ),
+            # Node(
+            #     package="rviz2",
+            #     executable="rviz2",
+            #     name="rviz2",
+            #     condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+            #     on_exit=Shutdown(),
+            #     output="log",
+            #     arguments=["-d", PathJoinSubstitution([
+            #         FindPackageShare("franka_teleop"), "config", "servo.rviz"
+            #     ])],
+            #     parameters=[
+            #         moveit_config_fake.robot_description,
+            #         moveit_config_fake.robot_description_semantic,
+            #         moveit_config_fake.robot_description_kinematics,
+            #     ],
+            # ),
             # Node(
             #     package="rviz2",
             #     executable="rviz2",

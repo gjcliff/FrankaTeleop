@@ -16,6 +16,8 @@
   <depend>moveit</depend>
   <depend>moveit_visual_tools</depend>
   <depend>moveit_planners_ompl</depend>
+  <depend>moveit_servo</depend>
+  <depend>moveit_servo_lib_parameters</depend>
 
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
