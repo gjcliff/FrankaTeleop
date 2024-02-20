@@ -45,6 +45,10 @@ def generate_launch_description():
                                   description="whether or not to use fake hardware."),
             DeclareLaunchArgument(name="robot_ip", default_value="panda0.robot",
                                   description="IP address of the robot"),
+            DeclareLaunchArgument(name="use_rviz", default_value="true",
+                                  description="whether or not to use rviz."),
+            DeclareLaunchArgument(name="rviz_file", default_value="moveit.rviz",
+                                  description="the .rviz file to launch rviz with."),
             Node(
                 package="rviz2",
                 executable="rviz2",
@@ -52,9 +56,7 @@ def generate_launch_description():
                 condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
                 on_exit=Shutdown(),
                 output="log",
-                arguments=["-d", PathJoinSubstitution([
-                    FindPackageShare("franka_teleop"), "config", "moveit.rviz"
-                ])],
+                arguments=["-d", LaunchConfiguration("rviz_file")],
                 parameters=[
                     moveit_config_fake.robot_description,
                     moveit_config_fake.robot_description_semantic,

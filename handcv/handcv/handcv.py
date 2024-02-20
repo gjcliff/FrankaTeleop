@@ -65,6 +65,8 @@ class HandCV(Node):
         self.waypoint = PoseStamped() 
         self.waypoint.pose.orientation.x = 1.0
         self.waypoint.pose.orientation.w = 0.0
+        self.image_width = 0
+        self.image_height = 0
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
@@ -76,6 +78,8 @@ class HandCV(Node):
         self.color_image = self.bridge.imgmsg_to_cv2(
             msg, desired_encoding="passthrough")
         self.color_image = cv.flip(self.color_image, 1)
+        self.image_width = msg.width
+        self.image_height = msg.height
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
@@ -102,7 +106,7 @@ class HandCV(Node):
             self.waypoint.pose.position.y = centroid[1]
             self.waypoint.pose.position.z = centroid[2]
 
-            text = f"(x: {np.round(centroid[0])}, y: {np.round(centroid[1])}, z: {np.round(centroid[2])})"
+            text = f"(x: {np.round(centroid[0] - self.image_width/2)}, y: {np.round(centroid[1] - self.image_height/2)}, z: {np.round(centroid[2])})"
 
             annotated_image = cv.putText(annotated_image, text,
                                          (int(centroid[0])-100,

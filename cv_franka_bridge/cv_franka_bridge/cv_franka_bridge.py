@@ -6,6 +6,7 @@ from std_srvs.srv import Empty
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from tf2_geometry_msgs import PoseStamped
 import tf2_ros
 
 import rclpy
@@ -38,11 +39,7 @@ class CvFrankaBridge(Node):
         self.current_waypoint = PoseStamped()
         self.waypoints = []
         self.move_robot = False
-        self.ee_home = Pose()
-        self.ee_home.position.x = 0.306891
-        self.ee_home.position.y = 0.0
-        self.ee_home.position.z = 0.486882
-        self.ee_home.orientation.x = 1.0
+        self.start_time = self.get_clock().now()
 
     def get_transform(self, target_frame, source_frame):
         # i need to transform the points in the camera frame to points in the 
@@ -55,7 +52,7 @@ class CvFrankaBridge(Node):
         # snag the current position of my hand and make the transform. I think
         # a service call is simpler for now.
         try:
-            trans = self.buffer.lookup_transform(target_frame, source_frame, self.get_clock().now())
+            trans = self.buffer.lookup_transform(target_frame, source_frame, rclpy.time.Time())
             translation = trans.transform.translation
             rotation = trans.transform.rotation
             return translation, rotation
@@ -79,83 +76,70 @@ class CvFrankaBridge(Node):
         # set the pose offset to the hand's current pose
         self.offset = self.current_waypoint.pose
         self.move_robot = True
+
+        # get the initial position of the end effector
+        self.ee_home_pos, self.ee_home_rot = self.get_transform("panda_link0", "panda_hand_tcp")
+        self.ee_home = PoseStamped()
+        self.ee_home.pose.position.x = self.ee_home_pos.x
+        self.ee_home.pose.position.y = self.ee_home_pos.y
+        self.ee_home.pose.position.z = self.ee_home_pos.z
+        self.ee_home.pose.orientation.x = self.ee_home_rot.x
+        self.ee_home.pose.orientation.y = self.ee_home_rot.y
+        self.ee_home.pose.orientation.z = self.ee_home_rot.z
+        self.ee_home.pose.orientation.w = self.ee_home_rot.w
+
         return response
 
-    async def waypoint_callback(self, msg):
+    def waypoint_callback(self, msg):
         if self.move_robot:
-            self.waypoints.append(msg.pose)
-            if(len(self.waypoints) >= 6):
-                self.get_logger().info("Received 6 waypoints")
-                # take the average of the last batch of waypoints
-                waypoint = PoseStamped()
-                waypoint.header.frame_id = "panda_link0"
-                waypoint.header.stamp = self.get_clock().now().to_msg()
+            time_now = self.get_clock().now() - self.start_time
+            # self.get_logger().info(f"num of waypoints: {len(self.waypoints)}")
+            # self.get_logger().info(f"time: {time_now.to_msg().sec}.{time_now.to_msg().nanosec}")
+            # take the average of the last batch of waypoints
+            waypoint = PoseStamped()
+            waypoint.header.frame_id = "panda_link0"
+            waypoint.header.stamp = self.get_clock().now().to_msg()
 
-                for i in range(len(self.waypoints)):
-                    waypoint.pose.position.x += self.waypoints[i].position.z
-                    waypoint.pose.position.y += self.waypoints[i].position.x
-                    waypoint.pose.position.z += self.waypoints[i].position.y
-                    waypoint.pose.orientation.x += self.waypoints[i].orientation.x
-                    waypoint.pose.orientation.y += self.waypoints[i].orientation.y
-                    waypoint.pose.orientation.z += self.waypoints[i].orientation.z
-                    waypoint.pose.orientation.w += self.waypoints[i].orientation.w
-                waypoint.pose.position.x /= (len(self.waypoints) * 1000.0) # convert from mm to m
-                waypoint.pose.position.y /= (len(self.waypoints) * 1000.0) # convert from mm to m
-                waypoint.pose.position.z /= (len(self.waypoints) * 1000.0) # convert from mm to m
-                waypoint.pose.orientation.x /= len(self.waypoints)
-                waypoint.pose.orientation.y /= len(self.waypoints)
-                waypoint.pose.orientation.z /= len(self.waypoints)
-                waypoint.pose.orientation.w /= len(self.waypoints)
+            waypoint.pose.position.x = msg.pose.position.x / 1000 # convert to meters
+            waypoint.pose.position.y = msg.pose.position.y / 1000 # convert to meters
+            waypoint.pose.position.z = msg.pose.position.z / 1000 # convert to meters
+            waypoint.pose.orientation.x = msg.pose.orientation.x
+            waypoint.pose.orientation.y = msg.pose.orientation.y
+            waypoint.pose.orientation.z = msg.pose.orientation.z
+            waypoint.pose.orientation.w = msg.pose.orientation.w
 
-                self.get_logger().info(f"waypoint.pose.position.x: {waypoint.pose.position.x}")
-                self.get_logger().info(f"waypoint.pose.position.y: {waypoint.pose.position.y}")
-                self.get_logger().info(f"waypoint.pose.position.z: {waypoint.pose.position.z}")
-                self.get_logger().info(f"waypoint.pose.orientation.x: {waypoint.pose.orientation.x}")
-                self.get_logger().info(f"waypoint.pose.orientation.y: {waypoint.pose.orientation.y}")
-                self.get_logger().info(f"waypoint.pose.orientation.z: {waypoint.pose.orientation.z}")
-                self.get_logger().info(f"waypoint.pose.orientation.w: {waypoint.pose.orientation.w}")
-                
+            # self.get_logger().info(f"waypoint: {waypoint.pose.position.x}, {waypoint.pose.position.y}, {waypoint.pose.position.z}")
+            # self.get_logger().info(f"offset: {self.offset.position.x}, {self.offset.position.y}, {self.offset.position.z}")
+            
 
-                # subtract the offset from the waypoint
-                waypoint.pose.position.x -= self.offset.position.z
-                waypoint.pose.position.y -= self.offset.position.x
-                waypoint.pose.position.z -= self.offset.position.y
-                waypoint.pose.orientation.x -= self.offset.orientation.x
-                waypoint.pose.orientation.y -= self.offset.orientation.y
-                waypoint.pose.orientation.z -= self.offset.orientation.z
-                waypoint.pose.orientation.w -= self.offset.orientation.w
+            # subtract the offset from the waypoint to get the relative movement
+            waypoint.pose.position.x -= self.offset.position.x / 1000
+            waypoint.pose.position.y -= self.offset.position.y / 1000
+            waypoint.pose.position.z -= self.offset.position.z / 1000
+            waypoint.pose.orientation.x += (waypoint.pose.orientation.x - self.offset.orientation.x)
+            waypoint.pose.orientation.y += (waypoint.pose.orientation.y - self.offset.orientation.y)
+            waypoint.pose.orientation.z += (waypoint.pose.orientation.z - self.offset.orientation.z)
+            waypoint.pose.orientation.w += (waypoint.pose.orientation.w - self.offset.orientation.w)
 
-                self.get_logger().info(f"self.offset.position.x: {self.offset.position.x}")
-                self.get_logger().info(f"self.offset.position.y: {self.offset.position.y}")
-                self.get_logger().info(f"self.offset.position.z: {self.offset.position.z}")
-                self.get_logger().info(f"self.offset.orientation.x: {self.offset.orientation.x}")
-                self.get_logger().info(f"self.offset.orientation.y: {self.offset.orientation.y}")
-                self.get_logger().info(f"self.offset.orientation.z: {self.offset.orientation.z}")
-                self.get_logger().info(f"self.offset.orientation.w: {self.offset.orientation.w}")
+            # self.get_logger().info(f"post-offset waypoint: {waypoint.pose.position.x}, {waypoint.pose.position.y}, {waypoint.pose.position.z}")
 
-                # figure out what the waypoint is in the robot's space frame
-                robot_waypoint = PoseStamped()
-                robot_waypoint = waypoint
-                # robot_waypoint.pose.position.x += self.ee_home.position.x
-                # robot_waypoint.pose.position.y += self.ee_home.position.y
-                # robot_waypoint.pose.position.z += self.ee_home.position.z
-                robot_waypoint.pose.orientation.x = 1.0
-                robot_waypoint.pose.orientation.w = 0.0
-                # orientation was calculated earlier when calculating the waypoint
-                        
-                # send the waypoint to the robot to execute
-                # self.get_logger().info(f"robot_waypoint.pose.position.x: {robot_waypoint.pose.position.x}")
-                # self.get_logger().info(f"robot_waypoint.pose.position.y: {robot_waypoint.pose.position.y}")
-                # self.get_logger().info(f"robot_waypoint.pose.position.z: {robot_waypoint.pose.position.z}")
-                # self.get_logger().info(f"robot_waypoint.pose.orientation.x: {robot_waypoint.pose.orientation.x}")
-                # self.get_logger().info(f"robot_waypoint.pose.orientation.y: {robot_waypoint.pose.orientation.y}")
-                # self.get_logger().info(f"robot_waypoint.pose.orientation.z: {robot_waypoint.pose.orientation.z}")
-                # self.get_logger().info(f"robot_waypoint.pose.orientation.w: {robot_waypoint.pose.orientation.w}")
-                planpath_request = PlanPath.Request()
-                planpath_request.waypoint = robot_waypoint
-                await self.plan_and_execute_client.call_async(planpath_request)
-            else:
-                self.current_waypoint = msg
+            # figure out what the waypoint is in the robot's space frame
+            robot_waypoint = PoseStamped()
+            robot_waypoint.header.frame_id = "panda_link0"
+            robot_waypoint.header.stamp = self.get_clock().now().to_msg()
+            robot_waypoint.pose.position.x = waypoint.pose.position.z + self.ee_home.pose.position.x
+            robot_waypoint.pose.position.y = -waypoint.pose.position.x + self.ee_home.pose.position.y
+            robot_waypoint.pose.position.z = -waypoint.pose.position.y + self.ee_home.pose.position.z
+            robot_waypoint.pose.orientation.x = 1.0
+            robot_waypoint.pose.orientation.w = 0.0
+            # self.get_logger().info(f"ee_home: {self.ee_home.pose.position.x}, {self.ee_home.pose.position.y}, {self.ee_home.pose.position.z}")
+            # self.get_logger().info(f"robot waypoint: {robot_waypoint.pose.position.x}, {robot_waypoint.pose.position.y}, {robot_waypoint.pose.position.z}\n")
+            # orientation was calculated earlier when calculating the waypoint
+            planpath_request = PlanPath.Request()
+            planpath_request.waypoint = robot_waypoint
+            future = self.plan_and_execute_client.call_async(planpath_request)
+        else:
+            self.current_waypoint = msg
 
 
 

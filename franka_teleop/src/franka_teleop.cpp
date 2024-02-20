@@ -1,11 +1,10 @@
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <moveit/robot_state/conversions.h>
 #include <rclcpp/logging.hpp>
 #include <string>
 #include <vector>
-#include <Eigen/Geometry>
+#include <eigen3/Eigen/Geometry>
 
 #include "franka_teleop/srv/detail/plan_path__struct.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -18,6 +17,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
+#include <moveit/robot_state/conversions.h>
 
 #include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>

@@ -13,11 +13,13 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(moveit REQUIRED)
-find_package(moveit_visual_tools REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(moveit_visual_tools REQUIRED)
+find_package(moveit_servo REQUIRED)
 
 add_executable(franka_teleop_node src/franka_teleop.cpp)
+add_executable(franka_servo src/franka_servo.cpp)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     "srv/PlanPath.srv"
@@ -35,9 +37,20 @@ ament_target_dependencies(
   moveit_visual_tools
 )
 
+ament_target_dependencies(
+  franka_servo
+  Eigen3
+  rclcpp
+  geometry_msgs
+  std_srvs
+  moveit
+  moveit_servo
+)
+
 
 install(TARGETS
     franka_teleop_node
+    franka_servo
     DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -56,6 +69,7 @@ rosidl_get_typesupport_target(cpp_typesupport_target
     ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 target_link_libraries(franka_teleop_node "${cpp_typesupport_target}")
+target_link_libraries(franka_servo "${cpp_typesupport_target}")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

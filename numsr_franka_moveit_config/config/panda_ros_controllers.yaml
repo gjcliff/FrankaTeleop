@@ -11,6 +11,7 @@ controller_manager:
 
 panda_arm_controller:
   ros__parameters:
+    allow_nonzero_velocity_at_trajectory_end: true
     command_interfaces:
       - effort
     state_interfaces:
