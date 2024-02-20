@@ -108,6 +108,7 @@ int main(int argc, char* argv[])
       target_pose.pose = servo.getEndEffectorPose();
       target_pose.pose.translate(linear_step_size);
       RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
+      linear_step_size = Eigen::Vector3d{0, 0, 0}; // reset linear_step_size
 
       rclcpp::spin_some(demo_node);
     }

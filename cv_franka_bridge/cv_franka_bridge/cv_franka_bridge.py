@@ -38,6 +38,7 @@ class CvFrankaBridge(Node):
         # create class variables
         self.offset = Pose()
         self.current_waypoint = PoseStamped()
+        self.previous_waypoint = PoseStamped()
         self.waypoints = []
         self.move_robot = False
         self.start_time = self.get_clock().now()
@@ -75,7 +76,8 @@ class CvFrankaBridge(Node):
 
     def begin_teleoperation_callback(self, request, response):
         # set the pose offset to the hand's current pose
-        self.offset = self.current_waypoint.pose
+        # self.offset = self.current_waypoint.pose
+        self.offset = self.previous_waypoint.pose
         self.move_robot = True
 
         # get the initial position of the end effector
@@ -128,9 +130,10 @@ class CvFrankaBridge(Node):
             robot_waypoint = PoseStamped()
             robot_waypoint.header.frame_id = "panda_link0"
             robot_waypoint.header.stamp = self.get_clock().now().to_msg()
-            robot_waypoint.pose.position.x = waypoint.pose.position.z #+ self.ee_home.pose.position.x
-            robot_waypoint.pose.position.y = -waypoint.pose.position.x #+ self.ee_home.pose.position.y
-            robot_waypoint.pose.position.z = -waypoint.pose.position.y #+ self.ee_home.pose.position.z
+            const = 1.1
+            robot_waypoint.pose.position.x = waypoint.pose.position.x * const #+ self.ee_home.pose.position.x
+            robot_waypoint.pose.position.y = waypoint.pose.position.z * const #+ self.ee_home.pose.position.y
+            robot_waypoint.pose.position.z = waypoint.pose.position.y * const #+ self.ee_home.pose.position.z
             robot_waypoint.pose.orientation.x = 1.0
             robot_waypoint.pose.orientation.w = 0.0
 
@@ -138,8 +141,11 @@ class CvFrankaBridge(Node):
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_waypoint
             future = self.waypoint_client.call_async(planpath_request)
+
+            self.offset = msg.pose
         else:
-            self.current_waypoint = msg
+            # self.current_waypoint = msg
+            self.previous_waypoint = msg
 
 
 

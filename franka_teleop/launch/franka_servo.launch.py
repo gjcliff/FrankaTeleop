@@ -42,13 +42,13 @@ def generate_launch_description():
 
      # Get parameters for the Servo node
     servo_params = {
-        "moveit_servo": ParameterBuilder("moveit_servo")
+        "moveit_servo": ParameterBuilder("numsr_franka_moveit_config")
         .yaml("config/panda_simulated_config.yaml")
         .to_dict()
     }
 
     # This filter parameter should be >1. Increase it for greater smoothing but slower motion.
-    low_pass_filter_coeff = {"butterworth_filter_coeff": 1.5}
+    low_pass_filter_coeff = {"butterworth_filter_coeff": 3.0}
 
     # Load controllers
     load_controllers = []
