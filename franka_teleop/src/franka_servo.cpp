@@ -14,19 +14,19 @@
 using std::placeholders::_1, std::placeholders::_2;
 using namespace moveit_servo;
 
-static Eigen::Vector3d linear_step_size{0.001, 0.001, 0.001};
+static Eigen::Vector3d linear_step_size{0.01, 0.00, 0.00};
 bool move_robot = false;
 
 void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
                        std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
 {
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
+  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
+  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
   linear_step_size = Eigen::Vector3d{
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
+  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
 
 }
 
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 
   // create services
   rclcpp::Service<franka_teleop::srv::PlanPath>::SharedPtr service = demo_node->create_service<franka_teleop::srv::PlanPath>(
-      "teleop_service", &waypoint_callback);
+      "robot_waypoints", &waypoint_callback);
 
   // Get the servo parameters.
   const std::string param_namespace = "moveit_servo";
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
       std::lock_guard<std::mutex> pguard(pose_guard);
       target_pose.pose = servo.getEndEffectorPose();
       target_pose.pose.translate(linear_step_size);
-      RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
+      // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
       linear_step_size = Eigen::Vector3d{0, 0, 0}; // reset linear_step_size
 
       rclcpp::spin_some(demo_node);
