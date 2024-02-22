@@ -22,10 +22,10 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
 {
   // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
   // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
-  linear_step_size = Eigen::Vector3d{
-    request->waypoint.pose.position.x,
-    request->waypoint.pose.position.y,
-    request->waypoint.pose.position.z};
+  // linear_step_size = Eigen::Vector3d{
+  //   request->waypoint.pose.position.x,
+  //   request->waypoint.pose.position.y,
+  //   request->waypoint.pose.position.z};
   // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
 
 }

@@ -26,14 +26,8 @@ def generate_launch_description():
                                   description="rviz file to use."),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([PathJoinSubstitution(
-                    [FindPackageShare('franka_teleop'), 'launch', 'franka_servo.launch.py'])]),
-                launch_arguments={'robot_ip': LaunchConfiguration("robot_ip"),
-                                  'use_fake_hardware': LaunchConfiguration("use_fake_hardware"),
-                                  'use_rviz': 'false'}.items(),
-            ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([PathJoinSubstitution(
                     [FindPackageShare('franka_teleop'), 'launch', 'franka_rviz.launch.py'])]),
+                condition=IfCondition(LaunchConfiguration("use_rviz")),
                 launch_arguments={'robot_ip': LaunchConfiguration("robot_ip"),
                                   'use_fake_hardware': LaunchConfiguration("use_fake_hardware"),
                                   'use_rviz': 'true',
@@ -41,8 +35,17 @@ def generate_launch_description():
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([PathJoinSubstitution(
+                    [FindPackageShare('franka_teleop'), 'launch', 'franka_servo.launch.py'])]),
+                condition=IfCondition(LaunchConfiguration("run_franka_teleop")),
+                launch_arguments={'robot_ip': LaunchConfiguration("robot_ip"),
+                                  'use_fake_hardware': LaunchConfiguration("use_fake_hardware"),
+                                  'use_rviz': 'false'}.items(),
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([PathJoinSubstitution(
                     [FindPackageShare('handcv'), 'launch', 'camera.launch.py'])]),
                 launch_arguments={'use_realsense': LaunchConfiguration("use_realsense")}.items(),
+                condition=IfCondition(LaunchConfiguration("use_realsense"))
             ),
             Node(
                 package="cv_franka_bridge",

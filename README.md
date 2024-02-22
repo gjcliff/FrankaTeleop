@@ -84,6 +84,9 @@ $ ros2 launch franka_teleop franka_rviz.launch.py
     3. **/plan_and_execute_path**: Same as /plan_path, but the path is executed right away.
     4. **/ready**: Plans and executes a path to bring the Franka to the ready position
 
+to run on robot: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=false robot_ip:=panda0.robot use_realsense:=false run_franka_teleop:=true
+to run on computer: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=true robot_ip:=panda0.robot use_realsense:=true run_franka_teleop:=false
+
 
 
 

@@ -70,9 +70,7 @@ def generate_launch_description():
                 condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
                 on_exit=Shutdown(),
                 output="log",
-                arguments=["-d", PathJoinSubstitution([
-                    FindPackageShare("franka_teleop"), "config", "moveit.rviz"
-                ])],
+                arguments=["-d", LaunchConfiguration("rviz_file")],
                 parameters=[
                     moveit_config_real.robot_description,
                     moveit_config_real.robot_description_semantic,

@@ -13,10 +13,10 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(moveit REQUIRED)
+find_package(moveit_ros_planning REQUIRED)
+find_package(moveit_servo REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(moveit_visual_tools REQUIRED)
-find_package(moveit_servo REQUIRED)
 
 add_executable(franka_teleop_node src/franka_teleop.cpp)
 add_executable(franka_servo src/franka_servo.cpp)
@@ -34,7 +34,7 @@ ament_target_dependencies(
   geometry_msgs
   std_srvs
   moveit
-  moveit_visual_tools
+  moveit_ros_planning
 )
 
 ament_target_dependencies(

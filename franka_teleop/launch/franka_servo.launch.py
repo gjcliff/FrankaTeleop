@@ -129,44 +129,6 @@ def generate_launch_description():
                 output="both",
                 parameters=[moveit_config_real.robot_description],
             ),
-            # Node(
-            #     package="rviz2",
-            #     executable="rviz2",
-            #     name="rviz2",
-            #     condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
-            #     on_exit=Shutdown(),
-            #     output="log",
-            #     arguments=["-d", PathJoinSubstitution([
-            #         FindPackageShare("franka_teleop"), "config", "servo.rviz"
-            #     ])],
-            #     parameters=[
-            #         moveit_config_fake.robot_description,
-            #         moveit_config_fake.robot_description_semantic,
-            #         moveit_config_fake.robot_description_kinematics,
-            #     ],
-            # ),
-            # Node(
-            #     package="rviz2",
-            #     executable="rviz2",
-            #     name="rviz2",
-            #     condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
-            #     on_exit=Shutdown(),
-            #     output="log",
-            #     arguments=["-d", PathJoinSubstitution([
-            #         FindPackageShare("franka_teleop"), "config", "moveit.rviz"
-            #     ])],
-            #     parameters=[
-            #         moveit_config_real.robot_description,
-            #         moveit_config_real.robot_description_semantic,
-            #         moveit_config_real.robot_description_kinematics,
-            #     ],
-            # ),
-            # IncludeLaunchDescription(
-            #     PythonLaunchDescriptionSource([PathJoinSubstitution(
-            #         [FindPackageShare('franka_gripper'), 'launch', 'gripper.launch.py'])]),
-            #     launch_arguments={'robot_ip': LaunchConfiguration("robot_ip"),
-            #                       'use_fake_hardware': LaunchConfiguration("use_fake_hardware")}.items(),
-            # ),
             Node(
                 package="franka_teleop",
                 executable="franka_servo",

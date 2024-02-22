@@ -14,14 +14,12 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 // load robot_model and robot_state
-#include <moveit/robot_model_loader/robot_model_loader.h>
-#include <moveit/robot_model/robot_model.h>
-#include <moveit/robot_state/robot_state.h>
-#include <moveit/robot_state/conversions.h>
+// #include <moveit/robot_model_loader/robot_model_loader.h>
+// #include <moveit/robot_state/robot_state.h>
+// #include <moveit/robot_state/conversions.h>
 
-#include <moveit/moveit_cpp/moveit_cpp.h>
 #include <moveit/moveit_cpp/planning_component.h>
-#include <moveit_visual_tools/moveit_visual_tools.h>
+#include <moveit/moveit_cpp/moveit_cpp.h>
 
 using namespace std::chrono_literals;
 using std::placeholders::_1, std::placeholders::_2;
@@ -204,7 +202,6 @@ private:
   std::vector<std::string> CONTROLLERS{1, "panda_arm_controller"};
   std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_ptr_;
   std::shared_ptr<moveit_cpp::PlanningComponent> planning_components_;
-  std::unique_ptr<moveit_visual_tools::MoveItVisualTools> visual_tools_;
   Eigen::Isometry3d text_pose_;
   moveit::core::RobotModelConstPtr robot_model_ptr_;
   moveit::core::RobotStatePtr robot_start_state_;
