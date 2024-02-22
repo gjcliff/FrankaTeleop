@@ -2,6 +2,7 @@
 #include <Eigen/Geometry>
 #include <atomic>
 #include "rclcpp/rclcpp.hpp"
+#include <chrono>
 #include <moveit_servo/moveit_servo/servo.hpp>
 #include <moveit_servo_lib_parameters/moveit_servo_lib_parameters.hpp>
 #include <moveit_servo/moveit_servo/utils/common.hpp>
@@ -22,16 +23,17 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
 {
   // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
   // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
-  // linear_step_size = Eigen::Vector3d{
-  //   request->waypoint.pose.position.x,
-  //   request->waypoint.pose.position.y,
-  //   request->waypoint.pose.position.z};
-  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
+  linear_step_size = Eigen::Vector3d{
+    request->waypoint.pose.position.x,
+    request->waypoint.pose.position.y,
+    request->waypoint.pose.position.z};
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
 
 }
 
 int main(int argc, char* argv[])
 {
+  std::this_thread::sleep_for(std::chrono::milliseconds(750));
   rclcpp::init(argc, argv);
 
   // The servo object expects to get a ROS node.

@@ -18,11 +18,6 @@ def generate_launch_description():
         .robot_description_kinematics(file_path="config/kinematics.yaml")
         .trajectory_execution(file_path="config/panda_controllers.yaml")
         .joint_limits(file_path="config/joint_limits.yaml")
-        .planning_pipelines("ompl", ["ompl"])
-        .moveit_cpp(
-            file_path=get_package_share_directory("numsr_franka_moveit_config")
-            + "/config/moveit_cpp.yaml"
-        )
         .to_moveit_configs()
     )
     moveit_config_real = (
@@ -32,11 +27,6 @@ def generate_launch_description():
         .robot_description_kinematics(file_path="config/kinematics.yaml")
         .trajectory_execution(file_path="config/panda_controllers.yaml")
         .joint_limits(file_path="config/joint_limits.yaml")
-        .planning_pipelines("ompl", ["ompl"])
-        .moveit_cpp(
-            file_path=get_package_share_directory("numsr_franka_moveit_config")
-            + "/config/moveit_cpp.yaml"
-        )
         .to_moveit_configs()
     )
 
@@ -53,8 +43,8 @@ def generate_launch_description():
     # Load controllers
     load_controllers = []
     for controller in [
-        "panda_arm_controller",
         "joint_state_broadcaster",
+        "panda_arm_controller",
     ]:
         load_controllers += [
             ExecuteProcess(
@@ -73,6 +63,23 @@ def generate_launch_description():
                                   description="whether or not to use rviz."),
             DeclareLaunchArgument(name="robot_ip", default_value="dont-care",
                                   description="IP address of the robot"),
+            Node(
+                package="franka_teleop",
+                executable="franka_servo",
+                parameters=[
+                    servo_params,
+                    low_pass_filter_coeff,
+                    moveit_config_fake.robot_description,
+                    moveit_config_fake.robot_description_semantic,
+                    moveit_config_fake.robot_description_kinematics,
+                ],
+                output="screen",
+            ),
+            ExecuteProcess(
+                cmd=["ros2 run controller_manager spawner joint_state_broadcaster"],
+                shell=True,
+                output="screen",
+            ),
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
@@ -129,18 +136,12 @@ def generate_launch_description():
                 output="both",
                 parameters=[moveit_config_real.robot_description],
             ),
-            Node(
-                package="franka_teleop",
-                executable="franka_servo",
-                parameters=[
-                    servo_params,
-                    low_pass_filter_coeff,
-                    moveit_config_fake.robot_description,
-                    moveit_config_fake.robot_description_semantic,
-                    moveit_config_fake.robot_description_kinematics,
-                ],
+
+            ExecuteProcess(
+                cmd=["ros2 run controller_manager spawner panda_arm_controller"],
+                shell=True,
                 output="screen",
-            )
+            ),
         ]
-        + load_controllers
+        # + load_controllers
     )
