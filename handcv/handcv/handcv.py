@@ -18,6 +18,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
@@ -54,10 +55,15 @@ class HandCV(Node):
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
+
         self.marker_pub = self.create_publisher(
             Marker, 'visualization_marker', 10)
+
         self.waypoint_pub = self.create_publisher(
                 PoseStamped, 'waypoint', 10)
+
+        self.gesture_pub = self.create_publisher(
+                String, 'gesture', 10)
 
         # intialize other variables
         self.color_image = None
@@ -67,6 +73,7 @@ class HandCV(Node):
         self.waypoint.pose.orientation.w = 0.0
         self.image_width = 0
         self.image_height = 0
+        self.centroid = np.array([0.0, 0.0, 0.0])
 
     def depth_image_raw_callback(self, msg):
         self.depth_image = self.bridge.imgmsg_to_cv2(
@@ -83,8 +90,13 @@ class HandCV(Node):
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
-        centroid = np.array([0, 0, 0])
-        if len(detection_result.hand_landmarks) == 1:
+        gesture = "None"
+        if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Left":
+            self.get_logger().info("Left Hand")
+            gesture = detection_result.gestures[0][0].category_name
+            self.get_logger().info(gesture)
+        if len(detection_result.hand_landmarks) and detection_result.handedness[0][0].category_name == "Right":
+            self.get_logger().info("Right Hand")
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]
                                for landmark in [detection_result.hand_landmarks[0][0],
@@ -94,32 +106,31 @@ class HandCV(Node):
                                                 detection_result.hand_landmarks[0][9],
                                                 detection_result.hand_landmarks[0][14],
                                                 detection_result.hand_landmarks[0][17]]])
-            # now perform the math on the numpy arrays. I think this is faster?
+        # now perform the math on the numpy arrays. I think this is faster?
             length = coords.shape[0]
             sum_x = np.sum(coords[:, 0])
             sum_y = np.sum(coords[:, 1])
-            centroid = np.array([sum_x/length, sum_y/length])
-            centroid = np.append(
-                centroid, self.depth_image[int(centroid[1]), int(centroid[0])])
+            self.centroid = np.array([sum_x/length, sum_y/length, 0.0])
+        self.centroid[2] = self.depth_image[int(self.centroid[1]), int(self.centroid[0])]
 
-            self.waypoint.pose.position.x = centroid[0]
-            self.waypoint.pose.position.y = centroid[1]
-            self.waypoint.pose.position.z = centroid[2]
+        self.waypoint.pose.position.x = self.centroid[0]
+        self.waypoint.pose.position.y = self.centroid[1]
+        self.waypoint.pose.position.z = self.centroid[2]
 
-            text = f"(x: {np.round(centroid[0] - self.image_width/2)}, y: {np.round(centroid[1] - self.image_height/2)}, z: {np.round(centroid[2])})"
+        text = f"(x: {np.round(self.centroid[0] - self.image_width/2)}, y: {np.round(self.centroid[1] - self.image_height/2)}, z: {np.round(self.centroid[2])})"
 
-            annotated_image = cv.putText(annotated_image, text,
-                                         (int(centroid[0])-100,
-                                          int(centroid[1])+40),
-                                         cv.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
+        annotated_image = cv.putText(annotated_image, text,
+                                     (int(self.centroid[0])-100,
+                                      int(self.centroid[1])+40),
+                                     cv.FONT_HERSHEY_COMPLEX, 0.5, (255, 255, 255), 1)
 
-            annotated_image = cv.circle(
-                annotated_image, (int(centroid[0]), int(centroid[1])), 10, (255, 255, 255), -1)
+        annotated_image = cv.circle(
+            annotated_image, (int(self.centroid[0]), int(self.centroid[1])), 10, (255, 255, 255), -1)
 
         cv_image = self.bridge.cv2_to_imgmsg(
             annotated_image, encoding="rgb8")
 
-        return cv_image, centroid
+        return cv_image, gesture
 
     def process_color_image(self):
         try:
@@ -127,7 +138,7 @@ class HandCV(Node):
             mp_image = mp.Image(
                 image_format=mp.ImageFormat.SRGB, data=self.color_image)
 
-            detection_result = self.mps.landmarker.detect(mp_image)
+            detection_result = self.mps.landmarker.recognize(mp_image)
             annotated_image = self.mps.draw_landmarks_on_image(
                 rgb_image=self.color_image, detection_result=detection_result)
 
@@ -139,9 +150,10 @@ class HandCV(Node):
     def timer_callback(self):
         if self.color_image is not None and self.depth_image is not None:
             annotated_image, detection_result = self.process_color_image()
-            cv_image, _ = self.process_depth_image(
+            cv_image, gesture = self.process_depth_image(
                 annotated_image, detection_result)
             self.cv_image_pub.publish(cv_image)
+            self.gesture_pub.publish(String(data=gesture))
         
         # publish the waypoint
         self.waypoint.header.stamp = self.get_clock().now().to_msg()

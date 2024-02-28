@@ -2,6 +2,7 @@ from geometry_msgs.msg import Pose, PoseStamped, Point
 from franka_teleop.srv import PlanPath
 
 from std_srvs.srv import Empty
+from std_msgs.msg import String
 
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -21,9 +22,11 @@ class CvFrankaBridge(Node):
 
         # create callback groups
         self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
+        self.gesture_callback_group = MutuallyExclusiveCallbackGroup()
 
         # create subscribers
         self.waypoint_subscriber = self.create_subscription(PoseStamped, 'waypoint', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
+        self.gesture_subscriber = self.create_subscription(String, 'gesture', self.gesture_callback, 10, callback_group=self.gesture_callback_group)
 
         # create clients
         self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
@@ -109,13 +112,35 @@ class CvFrankaBridge(Node):
             self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
 
+    def gesture_callback(self, msg):
+        if msg.data == "Thumb_Up":
+            self.move_robot = True
+            self.desired_ee_pose = self.get_ee_pose()
+            self.initial_ee_pose = self.get_ee_pose()
+            self.offset = self.current_waypoint
+        elif msg.data == "Closed_Fist":
+            self.move_robot = False
+            robot_move = PoseStamped()
+            robot_move.header.frame_id = "panda_link0"
+            robot_move.header.stamp = self.get_clock().now().to_msg()
+            robot_move.pose.position.x = 0.0
+            robot_move.pose.position.y = 0.0
+            robot_move.pose.position.z = 0.0
+            robot_move.pose.orientation.x = 1.0
+
+            self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
+
+            planpath_request = PlanPath.Request()
+            planpath_request.waypoint = robot_move
+            future = self.waypoint_client.call_async(planpath_request)
+
     def timer_callback(self):
         if self.move_robot:
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
             delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters
             delta.position.z = (self.current_waypoint.position.z - self.offset.position.z) / 1000 # convert to meters
-        
+
             # self.get_logger().info(f"delta: {delta.position.x}, {delta.position.y}, {delta.position.z}")
 
             ee_pose = self.get_ee_pose()

@@ -58,24 +58,34 @@ class MediaPipeRos:
     def initialize_mediapipe(self):
         # initialize the mediapipe task file's path
         self.model_path = os.path.join(
-            get_package_share_directory('handcv'), 'config/hand_landmarker.task')
+            get_package_share_directory('handcv'), 'config/gesture_recognizer.task')
 
         # mediapipe variables
+        # BaseOptions = mp.tasks.BaseOptions
+        # HandLandmarker = mp.tasks.vision.HandLandmarker
+        # HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
+        # VisionRunningMode = mp.tasks.vision.RunningMode
+        #
+        # options = HandLandmarkerOptions(
+        #     base_options=BaseOptions(self.model_path),
+        #     num_hands=2,
+        #     running_mode=VisionRunningMode.IMAGE,
+        #     # result_callback=self.do_nothing # only include if in LIVE_STEAM vision running mode
+        # )
+
         BaseOptions = mp.tasks.BaseOptions
-        HandLandmarker = mp.tasks.vision.HandLandmarker
-        HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
+        GestureRecognizer = mp.tasks.vision.GestureRecognizer
+        GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
         VisionRunningMode = mp.tasks.vision.RunningMode
 
-        options = HandLandmarkerOptions(
-            base_options=BaseOptions(self.model_path),
-            num_hands=2,
-            running_mode=VisionRunningMode.IMAGE,
-            # result_callback=self.do_nothing # only include if in LIVE_STEAM vision running mode
-        )
+        # Create a gesture recognizer instance with the image mode:
+        options = GestureRecognizerOptions(base_options=BaseOptions(self.model_path),
+                                           running_mode=VisionRunningMode.IMAGE,
+                                           num_hands=2)
 
-        landmarker = HandLandmarker.create_from_options(options)
+        recognizer = GestureRecognizer.create_from_options(options)
 
-        return landmarker
+        return recognizer
 
     def do_nothing(self):
         pass
