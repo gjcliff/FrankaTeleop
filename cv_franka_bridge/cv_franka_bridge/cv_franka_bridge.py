@@ -1,6 +1,8 @@
 from geometry_msgs.msg import Pose, PoseStamped, Point
 from franka_teleop.srv import PlanPath
 
+from visualization_msgs.msg import Marker
+
 from std_srvs.srv import Empty
 from std_msgs.msg import String
 
@@ -9,8 +11,11 @@ from tf2_ros.transform_listener import TransformListener
 from tf2_geometry_msgs import PoseStamped
 import tf2_ros
 
+from franka_msgs.action import Homing, Grasp
+
 import rclpy
 from rclpy.node import Node
+from rclpy.action import ActionClient
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 import numpy as np
@@ -26,7 +31,8 @@ class CvFrankaBridge(Node):
 
         # create subscribers
         self.waypoint_subscriber = self.create_subscription(PoseStamped, 'waypoint', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
-        self.gesture_subscriber = self.create_subscription(String, 'gesture', self.gesture_callback, 10, callback_group=self.gesture_callback_group)
+        self.left_gesture_subscriber = self.create_subscription(String, 'left_gesture', self.left_gesture_callback, 10, callback_group=self.gesture_callback_group)
+        self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
 
         # create clients
         self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
@@ -34,6 +40,13 @@ class CvFrankaBridge(Node):
 
         # create services
         self.begin_teleoperation_service = self.create_service(Empty, 'begin_teleop', self.begin_teleoperation_callback)
+        self.gripper_homing_service = self.create_service(Empty, 'gripper_homing', self.gripper_homing_callback)
+
+        # create action clients
+        self.gripper_homing_client = ActionClient(
+                self, Homing, 'panda_gripper/homing')
+        self.gripper_grasping_client = ActionClient(
+                self, Grasp, 'panda_gripper/grasp')
 
         # create tf buffer and listener
         self.buffer = Buffer()
@@ -60,6 +73,32 @@ class CvFrankaBridge(Node):
         self.kd = 0.01
         self.integral_prior = 0
         self.error_prior = 0
+
+        self.kill = False
+        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
+        self.gripper_ready = True
+        self.gripper_status = "Open"
+
+    def create_text_marker(self, text):
+        marker = Marker()
+        marker.header.frame_id = "panda_link0"
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.type = marker.TEXT_VIEW_FACING
+        marker.text = text
+        marker.pose.position.x = 0.0
+        marker.pose.position.y = 0.0
+        marker.pose.position.z = 1.0
+        marker.scale.z = 0.1
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        return marker
+
+    def gripper_homing_callback(self, request, response):
+        goal = Homing.Goal()
+        self.gripper_homing_client.send_goal_async(goal, feedback_callback=self.feedback_callback)
+        return response
 
     def get_transform(self, target_frame, source_frame):
         try:
@@ -112,7 +151,8 @@ class CvFrankaBridge(Node):
             self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
 
-    def gesture_callback(self, msg):
+    def left_gesture_callback(self, msg):
+        self.get_logger().info(f"left_gesture: {msg.data}")
         if msg.data == "Thumb_Up":
             self.move_robot = True
             self.desired_ee_pose = self.get_ee_pose()
@@ -134,8 +174,51 @@ class CvFrankaBridge(Node):
             planpath_request.waypoint = robot_move
             future = self.waypoint_client.call_async(planpath_request)
 
+    def right_gesture_callback(self, msg):
+        # self.get_logger().info(f"right_gesture: {msg.data}")
+        if msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
+            grasp_goal = Grasp.Goal()
+            grasp_goal.width = 0.01
+            grasp_goal.speed = 0.1
+            grasp_goal.epsilon.inner = 0.05
+            grasp_goal.epsilon.outer = 0.05
+            grasp_goal.force = 5.0
+            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+            future.add_done_callback(self.grasp_response_callback)
+            self.gripper_ready = False
+            self.gripper_status = "Closed"
+        elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
+            grasp_goal = Grasp.Goal()
+            grasp_goal.width = 0.025
+            grasp_goal.speed = 0.1
+            grasp_goal.epsilon.inner = 0.05
+            grasp_goal.epsilon.outer = 0.05
+            grasp_goal.force = 5.0
+            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+            future.add_done_callback(self.grasp_response_callback)
+            self.gripper_ready = False
+            self.gripper_status = "Open"
+
+    def grasp_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected :(')
+            return
+        self.get_logger().info('Goal accepted :)')
+
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        self.get_logger().info(f'Result: {result}')
+        self.gripper_ready = True
+
+    def feedback_callback(self, feedback):
+        self.get_logger().info(f"Feedback: {feedback}")
+
     def timer_callback(self):
-        if self.move_robot:
+        if self.move_robot and not self.kill:
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
             delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters
@@ -161,6 +244,8 @@ class CvFrankaBridge(Node):
 
             # self.get_logger().info(f"output: {output}")
             # self.get_logger().info(f"error: {error}")
+            if output > 0.05:
+                output = 0.05
 
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"

@@ -50,12 +50,20 @@ def generate_launch_description():
             Node(
                 package="cv_franka_bridge",
                 executable="cv_franka_bridge",
-                output="screen"
+                output="screen",
+                condition=IfCondition(LaunchConfiguration("use_realsense")),
             ),
             Node(
                 package='tf2_ros',
                 executable='static_transform_publisher',
                 arguments = ['--x', '0', '--y', '0', '--z', '0', '--yaw', '-1.5708', '--pitch', '0', '--roll', '-1.5708', '--frame-id', 'panda_link0', '--child-frame-id', 'camera_link']
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([PathJoinSubstitution(
+                    [FindPackageShare('franka_gripper'), 'launch', 'gripper.launch.py'])]),
+                condition=IfCondition(LaunchConfiguration("run_franka_teleop")),
+                launch_arguments={'robot_ip': LaunchConfiguration("robot_ip"),
+                                  'use_fake_hardware': LaunchConfiguration("use_fake_hardware")}.items(),
             ),
             # SetLaunchConfiguration(
             #     "robot_ip", PythonExpression(["'\"dont-care\" if ", LaunchConfiguration("use_fake_hardware"), " == \"true\" else \"panda0.robot\"'"])),

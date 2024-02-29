@@ -19,7 +19,8 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 
 add_executable(franka_teleop_node src/franka_teleop.cpp)
-add_executable(franka_servo src/franka_servo.cpp)
+add_executable(franka_servo_fake src/franka_servo_fake.cpp)
+add_executable(franka_servo_real src/franka_servo_real.cpp)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     "srv/PlanPath.srv"
@@ -38,7 +39,7 @@ ament_target_dependencies(
 )
 
 ament_target_dependencies(
-  franka_servo
+  franka_servo_fake
   Eigen3
   rclcpp
   geometry_msgs
@@ -47,10 +48,20 @@ ament_target_dependencies(
   moveit_servo
 )
 
+ament_target_dependencies(
+  franka_servo_real
+  Eigen3
+  rclcpp
+  geometry_msgs
+  std_srvs
+  moveit
+  moveit_servo
+)
 
 install(TARGETS
     franka_teleop_node
-    franka_servo
+    franka_servo_fake
+    franka_servo_real
     DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -69,7 +80,8 @@ rosidl_get_typesupport_target(cpp_typesupport_target
     ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 target_link_libraries(franka_teleop_node "${cpp_typesupport_target}")
-target_link_libraries(franka_servo "${cpp_typesupport_target}")
+target_link_libraries(franka_servo_fake "${cpp_typesupport_target}")
+target_link_libraries(franka_servo_real "${cpp_typesupport_target}")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

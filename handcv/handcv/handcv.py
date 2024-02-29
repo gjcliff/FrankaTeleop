@@ -62,8 +62,11 @@ class HandCV(Node):
         self.waypoint_pub = self.create_publisher(
                 PoseStamped, 'waypoint', 10)
 
-        self.gesture_pub = self.create_publisher(
-                String, 'gesture', 10)
+        self.left_gesture_pub = self.create_publisher(
+                String, 'left_gesture', 10)
+
+        self.right_gesture_pub = self.create_publisher(
+                String, 'right_gesture', 10)
 
         # intialize other variables
         self.color_image = None
@@ -90,13 +93,18 @@ class HandCV(Node):
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
-        gesture = "None"
+        left_gesture = "None"
+        right_gesture = "None"
         if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Left":
-            self.get_logger().info("Left Hand")
-            gesture = detection_result.gestures[0][0].category_name
-            self.get_logger().info(gesture)
+            # self.get_logger().info("Left Hand")
+            left_gesture = detection_result.gestures[0][0].category_name
+            # self.get_logger().info(left_gesture)
+        if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Right":
+            # self.get_logger().info("Right Hand")
+            right_gesture = detection_result.gestures[0][0].category_name
+            # self.get_logger().info(right_gesture)
         if len(detection_result.hand_landmarks) and detection_result.handedness[0][0].category_name == "Right":
-            self.get_logger().info("Right Hand")
+            # self.get_logger().info("Right Hand")
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]
                                for landmark in [detection_result.hand_landmarks[0][0],
@@ -130,7 +138,7 @@ class HandCV(Node):
         cv_image = self.bridge.cv2_to_imgmsg(
             annotated_image, encoding="rgb8")
 
-        return cv_image, gesture
+        return cv_image, left_gesture, right_gesture
 
     def process_color_image(self):
         try:
@@ -150,10 +158,11 @@ class HandCV(Node):
     def timer_callback(self):
         if self.color_image is not None and self.depth_image is not None:
             annotated_image, detection_result = self.process_color_image()
-            cv_image, gesture = self.process_depth_image(
+            cv_image, left_gesture, right_gesture = self.process_depth_image(
                 annotated_image, detection_result)
             self.cv_image_pub.publish(cv_image)
-            self.gesture_pub.publish(String(data=gesture))
+            self.left_gesture_pub.publish(String(data=left_gesture))
+            self.right_gesture_pub.publish(String(data=right_gesture))
         
         # publish the waypoint
         self.waypoint.header.stamp = self.get_clock().now().to_msg()

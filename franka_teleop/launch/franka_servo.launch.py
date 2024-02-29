@@ -65,7 +65,7 @@ def generate_launch_description():
                                   description="IP address of the robot"),
             Node(
                 package="franka_teleop",
-                executable="franka_servo",
+                executable="franka_servo_fake",
                 parameters=[
                     servo_params,
                     low_pass_filter_coeff,
@@ -73,6 +73,20 @@ def generate_launch_description():
                     moveit_config_fake.robot_description_semantic,
                     moveit_config_fake.robot_description_kinematics,
                 ],
+                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+                output="screen",
+            ),
+            Node(
+                package="franka_teleop",
+                executable="franka_servo_real",
+                parameters=[
+                    servo_params,
+                    low_pass_filter_coeff,
+                    moveit_config_fake.robot_description,
+                    moveit_config_fake.robot_description_semantic,
+                    moveit_config_fake.robot_description_kinematics,
+                ],
+                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
                 output="screen",
             ),
             ExecuteProcess(

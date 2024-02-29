@@ -5,8 +5,8 @@
 #include <atomic>
 #include "rclcpp/rclcpp.hpp"
 #include <chrono>
-#include <moveit_servo/moveit_servo/servo.hpp>
-#include <moveit_servo/moveit_servo/utils/common.hpp>
+#include <moveit_servo/servo.hpp>
+#include <moveit_servo/utils/common.hpp>
 #include <mutex>
 #include <std_srvs/srv/empty.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
@@ -17,6 +17,7 @@ using std::placeholders::_1, std::placeholders::_2;
 using namespace moveit_servo;
 
 static Eigen::Vector3d linear_step_size{0.00, 0.00, 0.00};
+static Eigen::AngleAxisd angular_step_size(0.00, Eigen::Vector3d::UnitX());
 bool move_robot = false;
 
 void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
@@ -28,8 +29,8 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
 
+  Eigen::AngleAxisd angular_step_size(0.005, Eigen::Vector3d::UnitY());
 }
 
 int main(int argc, char* argv[])
@@ -96,9 +97,6 @@ int main(int argc, char* argv[])
   std::thread tracker_thread(pose_tracker);
   tracker_thread.detach();
 
-  // The target pose (frame being tracked) moves by this step size each iteration.
-  Eigen::AngleAxisd angular_step_size(0.00, Eigen::Vector3d::UnitX());
-
   // Frequency at which commands will be sent to the robot controller.
   rclcpp::WallRate command_rate(50);
   RCLCPP_INFO_STREAM(demo_node->get_logger(), servo.getStatusMessage());
@@ -110,8 +108,6 @@ int main(int argc, char* argv[])
       target_pose.pose = servo.getEndEffectorPose();
       target_pose.pose.translate(linear_step_size);
       target_pose.pose.rotate(angular_step_size);
-      // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_sizefdsafdsa: " << linear_step_size[0] << " " << linear_step_size[1] << " " << linear_step_size[2] << "\n");
-      // linear_step_size = Eigen::Vector3d{0, 0, 0}; // reset linear_step_size
 
       rclcpp::spin_some(demo_node);
     }

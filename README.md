@@ -40,6 +40,7 @@ $ sudo apt install ros-{$ROS_DISTRO}-moveit
 * moveit.rviz
 
 ## Setup Instructions
+**THESE ARE WRONG I WILL FIX THEM VERY SOON AS IN THIS WEEKEND**
 1. Create a new ros2 workspace ```$ mkdir -p ws/handcv/src```
 2. cd into the src/ directory, and clone the repository into your workspace and run ```$ colcon build```
 3. Source the install directory with ```$ source install/setup.{your_shell}```
@@ -84,6 +85,7 @@ $ ros2 launch franka_teleop franka_rviz.launch.py
     3. **/plan_and_execute_path**: Same as /plan_path, but the path is executed right away.
     4. **/ready**: Plans and executes a path to bring the Franka to the ready position
 
+**THESE ARE RIGHT THOUGH**
 to run on robot: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=false robot_ip:=panda0.robot use_realsense:=false run_franka_teleop:=true
 to run on computer: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=true robot_ip:=panda0.robot use_realsense:=true run_franka_teleop:=false
 
