@@ -2,6 +2,7 @@ from geometry_msgs.msg import Pose, PoseStamped, Point
 from franka_teleop.srv import PlanPath
 
 from visualization_msgs.msg import Marker
+from hand_interfaces.msg import Pinch, FingerData
 
 from std_srvs.srv import Empty
 from std_msgs.msg import String
@@ -31,17 +32,22 @@ class CvFrankaBridge(Node):
 
         # create subscribers
         self.waypoint_subscriber = self.create_subscription(PoseStamped, 'waypoint', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
-        self.left_gesture_subscriber = self.create_subscription(String, 'left_gesture', self.left_gesture_callback, 10, callback_group=self.gesture_callback_group)
+        # self.left_gesture_subscriber = self.create_subscription(String, 'left_gesture', self.left_gesture_callback, 10, callback_group=self.gesture_callback_group)
         self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
+        self.pinch_data_subscriber = self.create_subscription(Pinch, 'pinch_data', self.pinch_data_callback, 10)
 
         # create clients
         # self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
         self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
         self.waypoint_client.wait_for_service(timeout_sec=2.0)
 
-        # create services
-        self.begin_teleoperation_service = self.create_service(Empty, 'begin_teleop', self.begin_teleoperation_callback)
-        self.gripper_homing_service = self.create_service(Empty, 'gripper_homing', self.gripper_homing_callback)
+        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
+        self.gripper_ready = True
+        self.gripper_status = "Open"
+        self.gripper_homed = False
+        self.gripper_force_control = False
+        self.gripper_force = 3.0
+        self.max_gripper_force = 10.0
 
         # create action clients
         self.gripper_homing_client = ActionClient(
@@ -53,6 +59,7 @@ class CvFrankaBridge(Node):
         # with a fake gripper, the homing server will not be created
         if not self.gripper_homing_client.wait_for_server(
                 timeout_sec=1):
+            self.gripper_ready = False
             self.gripper_homed = True
 
         # create tf buffer and listener
@@ -73,18 +80,29 @@ class CvFrankaBridge(Node):
         self.move_robot = False
         self.start_time = self.get_clock().now()
 
-        self.threshold = 3.0
+        self.lower_distance_threshold = 3.0
+        self.upper_distance_threshold = 100.0
 
+        # self.kp_coarse = 1.5
+        # self.ki_coarse = 0.01
+        # self.kd_coarse = 0.01
+        # self.kp_fine = 1.5
+        # self.ki_fine = 0.01
+        # self.kd_fine = 0.01
+        # self.max_output_coarse = 0.2
+        # self.max_output_fine = 0.05
+        # set the robot in coarse mode to start
         self.kp = 1.5
         self.ki = 0.01
         self.kd = 0.01
+        self.max_output = 0.15
         self.integral_prior = 0
         self.error_prior = 0
 
-        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
-        self.gripper_ready = True
-        self.gripper_status = "Open"
-        self.gripper_homed = False
+        self.pinch_data = None
+
+    def pinch_data_callback(self, msg):
+        self.pinch_data = msg
 
     def create_text_marker(self, text):
         marker = Marker()
@@ -139,14 +157,6 @@ class CvFrankaBridge(Node):
         ee_pose.orientation.w = ee_home_rot.w
         return ee_pose
 
-
-    def begin_teleoperation_callback(self, request, response):
-        self.move_robot = True
-        self.desired_ee_pose = self.get_ee_pose()
-        self.initial_ee_pose = self.get_ee_pose()
-        self.offset = self.current_waypoint
-        return response
-
     def waypoint_callback(self, msg):
         if self.current_waypoint is None or self.previous_waypoint is None:
             self.current_waypoint = msg.pose
@@ -154,18 +164,50 @@ class CvFrankaBridge(Node):
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
-        if distance > self.threshold:
+        if distance < self.lower_distance_threshold:
+            return
+        elif self.lower_distance_threshold < distance < self.upper_distance_threshold:
             self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
+        # elif distance > self.upper_distance_threshold:
+        #     self.get_logger().info("here3")
+        #     self.current_waypoint = msg.pose
+        #     self.offset = self.current_waypoint
+        #     self.previous_waypoint = self.current_waypoint
+        # if self.offset is not None:
+        #     self.get_logger().info(f"offset: {self.offset.position.x}, {self.offset.position.y}, {self.offset.position.z}")
 
-    def left_gesture_callback(self, msg):
-        # self.get_logger().info(f"left_gesture: {msg.data}")
+    # def left_gesture_callback(self, msg):
+    #     # self.get_logger().info(f"left_gesture: {msg.data}")
+    #     if msg.data == "Thumb_Up":
+    #         self.move_robot = True
+    #         self.desired_ee_pose = self.get_ee_pose()
+    #         self.initial_ee_pose = self.get_ee_pose()
+    #         self.offset = self.current_waypoint
+    #     elif msg.data == "Closed_Fist":
+    #         self.move_robot = False
+    #         robot_move = PoseStamped()
+    #         robot_move.header.frame_id = "panda_link0"
+    #         robot_move.header.stamp = self.get_clock().now().to_msg()
+    #         robot_move.pose.position.x = 0.0
+    #         robot_move.pose.position.y = 0.0
+    #         robot_move.pose.position.z = 0.0
+    #         robot_move.pose.orientation.x = 1.0
+    #
+    #         self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
+    #
+    #         planpath_request = PlanPath.Request()
+    #         planpath_request.waypoint = robot_move
+    #         future = self.waypoint_client.call_async(planpath_request)
+
+    def right_gesture_callback(self, msg):
+        # self.get_logger().info(f"right_gesture: {msg.data}")
         if msg.data == "Thumb_Up":
             self.move_robot = True
             self.desired_ee_pose = self.get_ee_pose()
             self.initial_ee_pose = self.get_ee_pose()
             self.offset = self.current_waypoint
-        elif msg.data == "Closed_Fist":
+        elif msg.data == "Thumb_Down":
             self.move_robot = False
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"
@@ -181,30 +223,36 @@ class CvFrankaBridge(Node):
             planpath_request.waypoint = robot_move
             future = self.waypoint_client.call_async(planpath_request)
 
-    def right_gesture_callback(self, msg):
-        # self.get_logger().info(f"right_gesture: {msg.data}")
-        if msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
+        elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
+            self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.01
             grasp_goal.speed = 0.1
             grasp_goal.epsilon.inner = 0.05
             grasp_goal.epsilon.outer = 0.05
-            grasp_goal.force = 5.0
+            grasp_goal.force = self.gripper_force
             future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
             future.add_done_callback(self.grasp_response_callback)
             self.gripper_ready = False
             self.gripper_status = "Closed"
+            self.gripper_force_control = False
+
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
+            self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.025
             grasp_goal.speed = 0.1
             grasp_goal.epsilon.inner = 0.05
             grasp_goal.epsilon.outer = 0.05
-            grasp_goal.force = 5.0
+            grasp_goal.force = self.gripper_force
             future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
             future.add_done_callback(self.grasp_response_callback)
             self.gripper_ready = False
             self.gripper_status = "Open"
+            self.gripper_force_control = False
+
+        elif msg.data == "Pointing_Up" and self.gripper_ready and self.gripper_status == "Closed":
+            self.gripper_force_control = True
 
     def grasp_response_callback(self, future):
         goal_handle = future.result()
@@ -232,6 +280,20 @@ class CvFrankaBridge(Node):
         # if not self.gripper_homed:
         #      await self.home_gripper()
         if self.move_robot:
+            if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
+                if self.gripper_force < self.max_gripper_force:
+                    self.gripper_force += 0.01
+                grasp_goal = Grasp.Goal()
+                grasp_goal.width = 0.01
+                grasp_goal.speed = 0.1
+                grasp_goal.epsilon.inner = 0.05
+                grasp_goal.epsilon.outer = 0.05
+                grasp_goal.force = self.gripper_force
+                future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+                future.add_done_callback(self.grasp_response_callback)
+                self.gripper_ready = False
+                self.gripper_status = "Open"
+
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
             delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters

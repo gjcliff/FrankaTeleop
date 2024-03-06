@@ -12,8 +12,12 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     "srv/HandPose.srv"
+    "msg/FingerData.msg"
+    "msg/Pinch.msg"
     DEPENDENCIES geometry_msgs
 )
+
+ament_export_dependencies(rosidl_default_runtime)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

@@ -19,6 +19,7 @@ from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
+from hand_interfaces.msg import Pinch, FingerData
 
 from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
@@ -56,14 +57,10 @@ class HandCV(Node):
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, 'cv_image', 10)
 
-        self.marker_pub = self.create_publisher(
-            Marker, 'visualization_marker', 10)
+        self.pinch_data_pub = self.create_publisher(Pinch, 'pinch_data', 10)
 
         self.waypoint_pub = self.create_publisher(
                 PoseStamped, 'waypoint', 10)
-
-        self.left_gesture_pub = self.create_publisher(
-                String, 'left_gesture', 10)
 
         self.right_gesture_pub = self.create_publisher(
                 String, 'right_gesture', 10)
@@ -93,12 +90,7 @@ class HandCV(Node):
 
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
-        left_gesture = "None"
         right_gesture = "None"
-        if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Left":
-            # self.get_logger().info("Left Hand")
-            left_gesture = detection_result.gestures[0][0].category_name
-            # self.get_logger().info(left_gesture)
         if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Right":
             # self.get_logger().info("Right Hand")
             right_gesture = detection_result.gestures[0][0].category_name
@@ -119,6 +111,17 @@ class HandCV(Node):
             sum_x = np.sum(coords[:, 0])
             sum_y = np.sum(coords[:, 1])
             self.centroid = np.array([sum_x/length, sum_y/length, 0.0])
+
+            # package the finger data into a pinch message
+            pinch = Pinch()
+            pinch.wrist = FingerData(x=detection_result.hand_landmarks[0][0].x, y=detection_result.hand_landmarks[0][0].y)
+            pinch.thumb = FingerData(x=detection_result.hand_landmarks[0][4].x, y=detection_result.hand_landmarks[0][4].y)
+            pinch.index = FingerData(x=detection_result.hand_landmarks[0][8].x, y=detection_result.hand_landmarks[0][8].y)
+            pinch.middle = FingerData(x=detection_result.hand_landmarks[0][12].x, y=detection_result.hand_landmarks[0][12].y)
+            pinch.ring = FingerData(x=detection_result.hand_landmarks[0][16].x, y=detection_result.hand_landmarks[0][16].y)
+            pinch.pinky = FingerData(x=detection_result.hand_landmarks[0][20].x, y=detection_result.hand_landmarks[0][20].y)
+            self.pinch_data_pub.publish(pinch)
+
         self.centroid[2] = self.depth_image[int(self.centroid[1]), int(self.centroid[0])]
 
         self.waypoint.pose.position.x = self.centroid[0]
@@ -138,7 +141,7 @@ class HandCV(Node):
         cv_image = self.bridge.cv2_to_imgmsg(
             annotated_image, encoding="rgb8")
 
-        return cv_image, left_gesture, right_gesture
+        return cv_image, right_gesture
 
     def process_color_image(self):
         try:
@@ -158,10 +161,9 @@ class HandCV(Node):
     def timer_callback(self):
         if self.color_image is not None and self.depth_image is not None:
             annotated_image, detection_result = self.process_color_image()
-            cv_image, left_gesture, right_gesture = self.process_depth_image(
+            cv_image, right_gesture = self.process_depth_image(
                 annotated_image, detection_result)
             self.cv_image_pub.publish(cv_image)
-            self.left_gesture_pub.publish(String(data=left_gesture))
             self.right_gesture_pub.publish(String(data=right_gesture))
         
         # publish the waypoint
