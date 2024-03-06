@@ -35,8 +35,9 @@ class CvFrankaBridge(Node):
         self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
 
         # create clients
-        self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
+        # self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
         self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
+        self.waypoint_client.wait_for_service(timeout_sec=2.0)
 
         # create services
         self.begin_teleoperation_service = self.create_service(Empty, 'begin_teleop', self.begin_teleoperation_callback)
@@ -47,6 +48,12 @@ class CvFrankaBridge(Node):
                 self, Homing, 'panda_gripper/homing')
         self.gripper_grasping_client = ActionClient(
                 self, Grasp, 'panda_gripper/grasp')
+
+        self.gripper_grasping_client.wait_for_server(timeout_sec=1.0)
+        # with a fake gripper, the homing server will not be created
+        if not self.gripper_homing_client.wait_for_server(
+                timeout_sec=1):
+            self.gripper_homed = True
 
         # create tf buffer and listener
         self.buffer = Buffer()
@@ -68,16 +75,16 @@ class CvFrankaBridge(Node):
 
         self.threshold = 3.0
 
-        self.kp = 1.0
+        self.kp = 1.5
         self.ki = 0.01
         self.kd = 0.01
         self.integral_prior = 0
         self.error_prior = 0
 
-        self.kill = False
         self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
         self.gripper_ready = True
         self.gripper_status = "Open"
+        self.gripper_homed = False
 
     def create_text_marker(self, text):
         marker = Marker()
@@ -152,7 +159,7 @@ class CvFrankaBridge(Node):
             self.current_waypoint = msg.pose
 
     def left_gesture_callback(self, msg):
-        self.get_logger().info(f"left_gesture: {msg.data}")
+        # self.get_logger().info(f"left_gesture: {msg.data}")
         if msg.data == "Thumb_Up":
             self.move_robot = True
             self.desired_ee_pose = self.get_ee_pose()
@@ -217,8 +224,14 @@ class CvFrankaBridge(Node):
     def feedback_callback(self, feedback):
         self.get_logger().info(f"Feedback: {feedback}")
 
-    def timer_callback(self):
-        if self.move_robot and not self.kill:
+    async def home_gripper(self):
+        await self.gripper_homing_client.send_goal_async(Homing.Goal(), feedback_callback=self.feedback_callback)
+        self.gripper_homed = True
+
+    async def timer_callback(self):
+        # if not self.gripper_homed:
+        #      await self.home_gripper()
+        if self.move_robot:
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
             delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters
@@ -231,8 +244,8 @@ class CvFrankaBridge(Node):
             self.desired_ee_pose.position.y = delta.position.x + self.initial_ee_pose.position.y
             self.desired_ee_pose.position.z = -delta.position.y + self.initial_ee_pose.position.z
 
-            self.get_logger().info(f"ee_pose: {ee_pose.position.x}, {ee_pose.position.y}, {ee_pose.position.z}")
-            self.get_logger().info(f"desired_ee_pose: {self.desired_ee_pose.position.x}, {self.desired_ee_pose.position.y}, {self.desired_ee_pose.position.z}")
+            # self.get_logger().info(f"ee_pose: {ee_pose.position.x}, {ee_pose.position.y}, {ee_pose.position.z}")
+            # self.get_logger().info(f"desired_ee_pose: {self.desired_ee_pose.position.x}, {self.desired_ee_pose.position.y}, {self.desired_ee_pose.position.z}")
 
             # PID loop
             error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
@@ -244,8 +257,8 @@ class CvFrankaBridge(Node):
 
             # self.get_logger().info(f"output: {output}")
             # self.get_logger().info(f"error: {error}")
-            if output > 0.05:
-                output = 0.05
+            if output > 0.15:
+                output = 0.15
 
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"
@@ -255,7 +268,7 @@ class CvFrankaBridge(Node):
             robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
             robot_move.pose.orientation.x = 1.0
 
-            self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
+            # self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
 
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_move

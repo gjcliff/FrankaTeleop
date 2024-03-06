@@ -23,14 +23,14 @@ bool move_robot = false;
 void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
                        std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
 {
-  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
-  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
+  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
   linear_step_size = Eigen::Vector3d{
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
 
-  Eigen::AngleAxisd angular_step_size(0.005, Eigen::Vector3d::UnitY());
+  // Eigen::AngleAxisd angular_step_size(0.005, Eigen::Vector3d::UnitY());
 }
 
 int main(int argc, char* argv[])
@@ -108,6 +108,9 @@ int main(int argc, char* argv[])
       target_pose.pose = servo.getEndEffectorPose();
       target_pose.pose.translate(linear_step_size);
       target_pose.pose.rotate(angular_step_size);
+
+      RCLCPP_INFO_STREAM(demo_node->get_logger(), "endeffectorpose translation: " << servo.getEndEffectorPose().translation() << " rotation: " << servo.getEndEffectorPose().rotation());
+
 
       rclcpp::spin_some(demo_node);
     }
