@@ -30,7 +30,7 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
 
-    angular_step_size = Eigen::AngleAxisd(0.005, Eigen::Vector3d::UnitY());
+    angular_step_size = Eigen::AngleAxisd(0.001, Eigen::Vector3d::UnitY());
 }
 
 int main(int argc, char* argv[])

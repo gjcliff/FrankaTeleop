@@ -46,7 +46,7 @@ class CvFrankaBridge(Node):
         self.gripper_status = "Open"
         self.gripper_homed = False
         self.gripper_force_control = False
-        self.gripper_force = 3.0
+        self.gripper_force = 1.0
         self.max_gripper_force = 10.0
 
         # create action clients
@@ -158,47 +158,22 @@ class CvFrankaBridge(Node):
         return ee_pose
 
     def waypoint_callback(self, msg):
+        # self.get_logger().info(f"waypoint message: {msg.pose.position.x}, {msg.pose.position.y}, {msg.pose.position.z}")
         if self.current_waypoint is None or self.previous_waypoint is None:
             self.current_waypoint = msg.pose
             self.previous_waypoint = Pose()
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
+        # self.get_logger().info(f"distance: {distance}")
         if distance < self.lower_distance_threshold:
             return
         elif self.lower_distance_threshold < distance < self.upper_distance_threshold:
             self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
-        # elif distance > self.upper_distance_threshold:
-        #     self.get_logger().info("here3")
-        #     self.current_waypoint = msg.pose
-        #     self.offset = self.current_waypoint
-        #     self.previous_waypoint = self.current_waypoint
-        # if self.offset is not None:
-        #     self.get_logger().info(f"offset: {self.offset.position.x}, {self.offset.position.y}, {self.offset.position.z}")
-
-    # def left_gesture_callback(self, msg):
-    #     # self.get_logger().info(f"left_gesture: {msg.data}")
-    #     if msg.data == "Thumb_Up":
-    #         self.move_robot = True
-    #         self.desired_ee_pose = self.get_ee_pose()
-    #         self.initial_ee_pose = self.get_ee_pose()
-    #         self.offset = self.current_waypoint
-    #     elif msg.data == "Closed_Fist":
-    #         self.move_robot = False
-    #         robot_move = PoseStamped()
-    #         robot_move.header.frame_id = "panda_link0"
-    #         robot_move.header.stamp = self.get_clock().now().to_msg()
-    #         robot_move.pose.position.x = 0.0
-    #         robot_move.pose.position.y = 0.0
-    #         robot_move.pose.position.z = 0.0
-    #         robot_move.pose.orientation.x = 1.0
-    #
-    #         self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
-    #
-    #         planpath_request = PlanPath.Request()
-    #         planpath_request.waypoint = robot_move
-    #         future = self.waypoint_client.call_async(planpath_request)
+        else:
+            self.previous_waypoint = self.current_waypoint
+            self.current_waypoint = msg.pose
 
     def right_gesture_callback(self, msg):
         # self.get_logger().info(f"right_gesture: {msg.data}")
@@ -209,41 +184,45 @@ class CvFrankaBridge(Node):
             self.offset = self.current_waypoint
         elif msg.data == "Thumb_Down":
             self.move_robot = False
+            self.desired_ee_pose = self.get_ee_pose()
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"
             robot_move.header.stamp = self.get_clock().now().to_msg()
             robot_move.pose.position.x = 0.0
             robot_move.pose.position.y = 0.0
-            robot_move.pose.position.z = 0.0
+            robot_move.pose.position.z = 0.001
             robot_move.pose.orientation.x = 1.0
 
-            self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
+            # self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
 
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_move
             future = self.waypoint_client.call_async(planpath_request)
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
-            self.gripper_force = 3.0
-            grasp_goal = Grasp.Goal()
-            grasp_goal.width = 0.01
-            grasp_goal.speed = 0.1
-            grasp_goal.epsilon.inner = 0.05
-            grasp_goal.epsilon.outer = 0.05
-            grasp_goal.force = self.gripper_force
-            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
-            future.add_done_callback(self.grasp_response_callback)
+            self.get_logger().info("Closing gripper")
+            self.get_logger().info(f"gripper status: {self.gripper_status}")
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
+            self.gripper_force = 1.0
+            grasp_goal = Grasp.Goal()
+            grasp_goal.width = 0.01
+            grasp_goal.speed = 0.1
+            grasp_goal.epsilon.inner = 0.08
+            grasp_goal.epsilon.outer = 0.08
+            grasp_goal.force = self.gripper_force
+            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+            future.add_done_callback(self.grasp_response_callback)
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
+            self.get_logger().info("Opening gripper")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
-            grasp_goal.width = 0.025
+            grasp_goal.width = 0.075
             grasp_goal.speed = 0.1
-            grasp_goal.epsilon.inner = 0.05
-            grasp_goal.epsilon.outer = 0.05
+            grasp_goal.epsilon.inner = 0.001
+            grasp_goal.epsilon.outer = 0.001
             grasp_goal.force = self.gripper_force
             future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
             future.add_done_callback(self.grasp_response_callback)
@@ -283,16 +262,17 @@ class CvFrankaBridge(Node):
             if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
                 if self.gripper_force < self.max_gripper_force:
                     self.gripper_force += 0.01
+                self.get_logger().info(f"Setting gripper force to: {self.gripper_force}")
+                self.gripper_ready = False
+                self.gripper_status = "Closed"
                 grasp_goal = Grasp.Goal()
                 grasp_goal.width = 0.01
                 grasp_goal.speed = 0.1
-                grasp_goal.epsilon.inner = 0.05
-                grasp_goal.epsilon.outer = 0.05
+                grasp_goal.epsilon.inner = 0.08
+                grasp_goal.epsilon.outer = 0.08
                 grasp_goal.force = self.gripper_force
                 future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
                 future.add_done_callback(self.grasp_response_callback)
-                self.gripper_ready = False
-                self.gripper_status = "Open"
 
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
@@ -319,8 +299,8 @@ class CvFrankaBridge(Node):
 
             # self.get_logger().info(f"output: {output}")
             # self.get_logger().info(f"error: {error}")
-            if output > 0.15:
-                output = 0.15
+            if output > self.max_output:
+                output = self.max_output
 
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"
@@ -335,6 +315,35 @@ class CvFrankaBridge(Node):
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_move
             future = self.waypoint_client.call_async(planpath_request)
+        else:
+            if self.desired_ee_pose is not None:
+                # PID loop
+                ee_pose = self.get_ee_pose()
+                error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
+                                       np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
+
+                derivative = (error - self.error_prior)
+                output = self.kp * error + self.kd * derivative
+                self.error_prior = error
+
+                # self.get_logger().info(f"output: {output}")
+                # self.get_logger().info(f"error: {error}")
+                if output > self.max_output:
+                    output = self.max_output
+
+                robot_move = PoseStamped()
+                robot_move.header.frame_id = "panda_link0"
+                robot_move.header.stamp = self.get_clock().now().to_msg()
+                robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
+                robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
+                robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
+                robot_move.pose.orientation.x = 1.0
+
+                # self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
+
+                planpath_request = PlanPath.Request()
+                planpath_request.waypoint = robot_move
+                future = self.waypoint_client.call_async(planpath_request)
 
 def main(args=None):
     rclpy.init(args=args)
