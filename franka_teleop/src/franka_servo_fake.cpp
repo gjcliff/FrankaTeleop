@@ -17,7 +17,9 @@ using std::placeholders::_1, std::placeholders::_2;
 using namespace moveit_servo;
 
 static Eigen::Vector3d linear_step_size{0.00, 0.00, 0.00};
-static Eigen::AngleAxisd angular_step_size(0.00, Eigen::Vector3d::UnitY());
+static Eigen::AngleAxisd x_step_size(0.00, Eigen::Vector3d::UnitX());
+static Eigen::AngleAxisd y_step_size(0.00, Eigen::Vector3d::UnitY());
+static Eigen::AngleAxisd z_step_size(0.00, Eigen::Vector3d::UnitZ());
 bool move_robot = false;
 
 void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
@@ -29,6 +31,9 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
+  x_step_size = Eigen::AngleAxisd(request->angles[0], Eigen::Vector3d::UnitX());
+  y_step_size = Eigen::AngleAxisd(request->angles[1], Eigen::Vector3d::UnitY());
+  z_step_size = Eigen::AngleAxisd(request->angles[2], Eigen::Vector3d::UnitZ());
 
   // Eigen::AngleAxisd angular_step_size(0.005, Eigen::Vector3d::UnitY());
 }
@@ -107,7 +112,9 @@ int main(int argc, char* argv[])
       std::lock_guard<std::mutex> pguard(pose_guard);
       target_pose.pose = servo.getEndEffectorPose();
       target_pose.pose.translate(linear_step_size);
-      target_pose.pose.rotate(angular_step_size);
+      target_pose.pose.rotate(x_step_size);
+      target_pose.pose.rotate(y_step_size);
+      target_pose.pose.rotate(z_step_size);
 
       // RCLCPP_INFO_STREAM(demo_node->get_logger(), "endeffectorpose translation: " << servo.getEndEffectorPose().translation() << " rotation: " << servo.getEndEffectorPose().rotation());
 
