@@ -37,6 +37,9 @@ class CvFrankaBridge(Node):
         self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
         self.pinch_data_subscriber = self.create_subscription(Pinch, 'pinch_data', self.pinch_data_callback, 10)
 
+        # create publishers
+        self.text_marker_publisher = self.create_publisher(Marker, 'text_marker', 10)
+
         # create clients
         # self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
         self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
@@ -96,6 +99,9 @@ class CvFrankaBridge(Node):
         self.kp = 1.5
         self.ki = 0.01
         self.kd = 0.01
+        self.kp_angle = 0.1
+        self.ki_angle = 0.01
+        self.kd_angle = 0.01
         self.max_output = 0.15
         self.integral_prior = 0
         self.position_error_prior = 0
@@ -104,6 +110,7 @@ class CvFrankaBridge(Node):
         self.yaw_error_prior = 0
 
         self.pinch_data = None
+        self.count = 0
 
     def pinch_data_callback(self, msg):
         self.pinch_data = msg
@@ -117,7 +124,7 @@ class CvFrankaBridge(Node):
         marker.pose.position.x = 0.0
         marker.pose.position.y = 0.0
         marker.pose.position.z = 1.0
-        marker.scale.z = 0.1
+        marker.scale.z = 0.05
         marker.color.a = 1.0
         marker.color.r = 1.0
         marker.color.g = 0.0
@@ -130,7 +137,7 @@ class CvFrankaBridge(Node):
         return response
 
     def calculate_desired_quaternion(self):
-        theta = np.atan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
+        theta = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
         return theta
 
     def get_transform(self, target_frame, source_frame):
@@ -166,38 +173,35 @@ class CvFrankaBridge(Node):
         return ee_pose
 
     def waypoint_callback(self, msg):
-        # self.get_logger().info(f"waypoint message: {msg.pose.position.x}, {msg.pose.position.y}, {msg.pose.position.z}")
         if self.current_waypoint is None or self.previous_waypoint is None:
             self.current_waypoint = msg.pose
             self.previous_waypoint = Pose()
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
-        # self.get_logger().info(f"distance: {distance}")
         if distance < self.lower_distance_threshold:
             return
-        elif self.lower_distance_threshold < distance < self.upper_distance_threshold:
-            self.previous_waypoint = self.current_waypoint
-            self.current_waypoint = msg.pose
         else:
             self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
 
     def right_gesture_callback(self, msg):
-        # self.get_logger().info(f"right_gesture: {msg.data}")
         if msg.data == "Thumb_Up":
+            self.text_marker = self.create_text_marker("Readjusting")
             self.move_robot = True
-            self.desired_ee_pose = self.get_ee_pose()
-            phi = np.atan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
-            quat = quaternion_from_euler(0.0, 0.0, phi)
-            self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
-            self.initial_ee_pose = self.get_ee_pose()
             self.offset = self.current_waypoint
+            if self.count == 0:
+                self.initial_ee_pose = self.get_ee_pose()
+                self.desired_ee_pose = self.get_ee_pose()
+                phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
+                quat = quaternion_from_euler(-np.pi, 0.0, 0.0)
+                self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
+                self.count += 1
         elif msg.data == "Thumb_Down":
             self.move_robot = False
             self.desired_ee_pose = self.get_ee_pose()
-            phi = np.atan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
-            quat = quaternion_from_euler(0.0, 0.0, phi)
+            phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
+            quat = quaternion_from_euler(-np.pi, 0.0, phi)
             self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
             robot_move = PoseStamped()
             robot_move.header.frame_id = "panda_link0"
@@ -207,15 +211,12 @@ class CvFrankaBridge(Node):
             robot_move.pose.position.z = 0.001
             robot_move.pose.orientation.x = 1.0
 
-            # self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
-
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_move
             future = self.waypoint_client.call_async(planpath_request)
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
-            self.get_logger().info("Closing gripper")
-            self.get_logger().info(f"gripper status: {self.gripper_status}")
+            self.text_marker = self.create_text_marker("Closing gripper")
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
@@ -230,7 +231,7 @@ class CvFrankaBridge(Node):
             future.add_done_callback(self.grasp_response_callback)
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
-            self.get_logger().info("Opening gripper")
+            self.text_marker = self.create_text_marker("Opening gripper")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.075
@@ -246,6 +247,10 @@ class CvFrankaBridge(Node):
 
         elif msg.data == "Pointing_Up" and self.gripper_ready and self.gripper_status == "Closed":
             self.gripper_force_control = True
+            self.text_marker = self.create_text_marker("Increasing gripper force")
+
+        if msg.data != "Thumb_Up":
+            self.count = 0
 
     def grasp_response_callback(self, future):
         goal_handle = future.result()
@@ -272,6 +277,7 @@ class CvFrankaBridge(Node):
     async def timer_callback(self):
         # if not self.gripper_homed:
         #      await self.home_gripper()
+        self.text_marker_publisher.publish(self.text_marker)
         if self.move_robot:
             if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
                 if self.gripper_force < self.max_gripper_force:
@@ -298,27 +304,37 @@ class CvFrankaBridge(Node):
             self.desired_ee_pose.position.x = delta.position.z + self.initial_ee_pose.position.x
             self.desired_ee_pose.position.y = delta.position.x + self.initial_ee_pose.position.y
             self.desired_ee_pose.position.z = -delta.position.y + self.initial_ee_pose.position.z
-            current_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
-            desired_euler = euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w])
+            current_euler = list(euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w]))
+            desired_euler = list(euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w]))
 
             # Orientation PID loops
+            if current_euler[0] < 0:
+                current_euler[0] += 2 * np.pi
+            if desired_euler[0] < 0:
+                desired_euler[0] += 2 * np.pi
             roll_error = desired_euler[0] - current_euler[0]
             pitch_error = desired_euler[1] - current_euler[1]
             yaw_error = desired_euler[2] - current_euler[2]
+
+            # self.get_logger().info(f"current_euler: {current_euler}")
+            # self.get_logger().info(f"desired_euler: {desired_euler}")
 
             roll_derivative = (roll_error - self.roll_error_prior)
             pitch_derivative = (pitch_error - self.pitch_error_prior)
             yaw_derivative = (yaw_error - self.yaw_error_prior)
 
+            roll_output = self.kp_angle * roll_error - self.kd_angle * roll_derivative
+            pitch_output = self.kp_angle * pitch_error + self.kd_angle * pitch_derivative
+            yaw_output = self.kp_angle * yaw_error + self.kd_angle * yaw_derivative
+
+            euler_output = [roll_output, -pitch_output, -yaw_output]
+            # euler_output = [0.0, 0.0, 0.0]
+
+            # self.get_logger().info(f"roll_output: {roll_output}, pitch_output: {pitch_output}, yaw_output: {yaw_output}")
+
             self.roll_error_prior = roll_error
             self.pitch_error_prior = pitch_error
             self.yaw_error_prior = yaw_error
-
-            roll_output = self.kp * roll_error + self.kd * roll_derivative
-            pitch_output = self.kp * pitch_error + self.kd * pitch_derivative
-            yaw_output = self.kp * yaw_error + self.kd * yaw_derivative
-
-            euler_output = [roll_output, pitch_output, yaw_output]
 
             # Position PID loop
             position_error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
@@ -328,8 +344,6 @@ class CvFrankaBridge(Node):
             output = self.kp * position_error + self.kd * derivative
             self.position_error_prior = position_error
 
-            # self.get_logger().info(f"output: {output}")
-            # self.get_logger().info(f"position_error: {position_error}")
             if output > self.max_output:
                 output = self.max_output
 
@@ -339,9 +353,6 @@ class CvFrankaBridge(Node):
             robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
             robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
             robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
-            robot_move.pose.orientation.x = 1.0
-
-            # self.get_logger().info(f"robot_move: {robot_move.pose.position.x}, {robot_move.pose.position.y}, {robot_move.pose.position.z}\n")
 
             planpath_request = PlanPath.Request()
             planpath_request.waypoint = robot_move
@@ -355,6 +366,10 @@ class CvFrankaBridge(Node):
                 desired_euler = euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w])
 
                 # Orientation PID loops
+                if current_euler[0] < -np.pi:
+                    current_euler[0] += 2 * np.pi
+                if desired_euler[0] < -np.pi:
+                    desired_euler[0] += 2 * np.pi
                 roll_error = desired_euler[0] - current_euler[0]
                 pitch_error = desired_euler[1] - current_euler[1]
                 yaw_error = desired_euler[2] - current_euler[2]
