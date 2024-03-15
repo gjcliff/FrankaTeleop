@@ -4,6 +4,7 @@ controller_manager:
 
     panda_arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
+      # type: joint_group_position_controller/JointGroupPositionController
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster

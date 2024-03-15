@@ -89,12 +89,3 @@ $ ros2 launch franka_teleop franka_rviz.launch.py
 to run on robot: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=false robot_ip:=panda0.robot use_realsense:=false run_franka_teleop:=true
 to run on computer: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=true robot_ip:=panda0.robot use_realsense:=true run_franka_teleop:=false
 
-
-
-
-
-
-
-
-
-

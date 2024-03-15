@@ -73,6 +73,12 @@ class MediaPipeRos:
         #     # result_callback=self.do_nothing # only include if in LIVE_STEAM vision running mode
         # )
 
+        # base_options = python.BaseOptions(model_asset_path=self.model_path)
+        # options = vision.GestureRecognizerOptions(base_options=base_options,
+        #                                           running_mode=vision.RunningMode.IMAGE,
+        #                                           num_hands=2)
+        # recognizer = vision.GestureRecognizer.create_from_options(options)
+
         BaseOptions = mp.tasks.BaseOptions
         GestureRecognizer = mp.tasks.vision.GestureRecognizer
         GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions

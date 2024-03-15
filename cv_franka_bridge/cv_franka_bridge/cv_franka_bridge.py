@@ -50,7 +50,7 @@ class CvFrankaBridge(Node):
         self.gripper_status = "Open"
         self.gripper_homed = False
         self.gripper_force_control = False
-        self.gripper_force = 1.0
+        self.gripper_force = 0.001
         self.max_gripper_force = 10.0
 
         # create action clients
@@ -85,7 +85,7 @@ class CvFrankaBridge(Node):
         self.start_time = self.get_clock().now()
 
         self.lower_distance_threshold = 3.0
-        self.upper_distance_threshold = 100.0
+        self.upper_distance_threshold = 10.0
 
         # self.kp_coarse = 1.5
         # self.ki_coarse = 0.01
@@ -96,13 +96,13 @@ class CvFrankaBridge(Node):
         # self.max_output_coarse = 0.2
         # self.max_output_fine = 0.05
         # set the robot in coarse mode to start
-        self.kp = 1.5
-        self.ki = 0.01
+        self.kp = 5.0
+        self.ki = 0.0
         self.kd = 0.01
-        self.kp_angle = 0.1
-        self.ki_angle = 0.01
+        self.kp_angle = 1.0
+        self.ki_angle = 0.0
         self.kd_angle = 0.01
-        self.max_output = 0.15
+        self.max_output = 0.5
         self.integral_prior = 0
         self.position_error_prior = 0
         self.roll_error_prior = 0
@@ -124,7 +124,8 @@ class CvFrankaBridge(Node):
         marker.pose.position.x = 0.0
         marker.pose.position.y = 0.0
         marker.pose.position.z = 1.0
-        marker.scale.z = 0.05
+        marker.scale.z = 0.1
+        marker.scale.x = 0.1
         marker.color.a = 1.0
         marker.color.r = 1.0
         marker.color.g = 0.0
@@ -135,10 +136,6 @@ class CvFrankaBridge(Node):
         goal = Homing.Goal()
         self.gripper_homing_client.send_goal_async(goal, feedback_callback=self.feedback_callback)
         return response
-
-    def calculate_desired_quaternion(self):
-        theta = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
-        return theta
 
     def get_transform(self, target_frame, source_frame):
         try:
@@ -179,7 +176,8 @@ class CvFrankaBridge(Node):
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
-        if distance < self.lower_distance_threshold:
+        if distance < self.lower_distance_threshold and distance > self.upper_distance_threshold:
+            self.current_waypoint = msg.pose
             return
         else:
             self.previous_waypoint = self.current_waypoint
@@ -187,7 +185,7 @@ class CvFrankaBridge(Node):
 
     def right_gesture_callback(self, msg):
         if msg.data == "Thumb_Up":
-            self.text_marker = self.create_text_marker("Readjusting")
+            self.text_marker = self.create_text_marker("Paused")
             self.move_robot = True
             self.offset = self.current_waypoint
             if self.count == 0:
@@ -216,26 +214,26 @@ class CvFrankaBridge(Node):
             future = self.waypoint_client.call_async(planpath_request)
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
-            self.text_marker = self.create_text_marker("Closing gripper")
+            self.text_marker = self.create_text_marker("Gripper Closed")
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
-            self.gripper_force = 1.0
+            self.gripper_force = 0.001
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.01
             grasp_goal.speed = 0.1
-            grasp_goal.epsilon.inner = 0.08
-            grasp_goal.epsilon.outer = 0.08
+            grasp_goal.epsilon.inner = 0.05
+            grasp_goal.epsilon.outer = 0.05
             grasp_goal.force = self.gripper_force
             future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
             future.add_done_callback(self.grasp_response_callback)
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
-            self.text_marker = self.create_text_marker("Opening gripper")
+            self.text_marker = self.create_text_marker("Tracking Right Hand")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.075
-            grasp_goal.speed = 0.1
+            grasp_goal.speed = 0.2
             grasp_goal.epsilon.inner = 0.001
             grasp_goal.epsilon.outer = 0.001
             grasp_goal.force = self.gripper_force
@@ -277,11 +275,11 @@ class CvFrankaBridge(Node):
     async def timer_callback(self):
         # if not self.gripper_homed:
         #      await self.home_gripper()
-        self.text_marker_publisher.publish(self.text_marker)
+        # self.text_marker_publisher.publish(self.text_marker)
         if self.move_robot:
             if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
                 if self.gripper_force < self.max_gripper_force:
-                    self.gripper_force += 0.1
+                    self.gripper_force += 1.0
                 self.get_logger().info(f"Setting gripper force to: {self.gripper_force}")
                 self.gripper_ready = False
                 self.gripper_status = "Closed"
@@ -403,10 +401,17 @@ class CvFrankaBridge(Node):
                 robot_move = PoseStamped()
                 robot_move.header.frame_id = "panda_link0"
                 robot_move.header.stamp = self.get_clock().now().to_msg()
-                robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
-                robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
-                robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
-                robot_move.pose.orientation.x = 1.0
+                # robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
+                # robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
+                # robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
+                robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
+                robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
+                robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
+                robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
+                robot_move.pose.position.x = robot_move_x/robot_move_norm * output
+                robot_move.pose.position.y = robot_move_y/robot_move_norm * output
+                robot_move.pose.position.z = robot_move_z/robot_move_norm * output
+                self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
 
                 planpath_request = PlanPath.Request()
                 planpath_request.waypoint = robot_move

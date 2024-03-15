@@ -274,33 +274,7 @@ Visualization Manager:
           Value: false
         camera_link:
           Value: true
-        panda_hand:
-          Value: false
-        panda_hand_tcp:
-          Value: false
-        panda_leftfinger:
-          Value: false
         panda_link0:
-          Value: false
-        panda_link1:
-          Value: false
-        panda_link2:
-          Value: false
-        panda_link3:
-          Value: false
-        panda_link4:
-          Value: false
-        panda_link5:
-          Value: false
-        panda_link6:
-          Value: false
-        panda_link7:
-          Value: false
-        panda_link8:
-          Value: false
-        panda_rightfinger:
-          Value: false
-        world:
           Value: false
       Marker Scale: 1
       Name: TF
@@ -308,37 +282,21 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        world:
-          panda_link0:
-            camera_link:
-              camera_color_frame:
-                camera_color_optical_frame:
-                  {}
-              camera_depth_frame:
-                camera_depth_optical_frame:
-                  {}
-            panda_link1:
-              panda_link2:
-                panda_link3:
-                  panda_link4:
-                    panda_link5:
-                      panda_link6:
-                        panda_link7:
-                          panda_link8:
-                            panda_hand:
-                              panda_hand_tcp:
-                                {}
-                              panda_leftfinger:
-                                {}
-                              panda_rightfinger:
-                                {}
+        panda_link0:
+          camera_link:
+            camera_color_frame:
+              camera_color_optical_frame:
+                {}
+            camera_depth_frame:
+              camera_depth_optical_frame:
+                {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -393,16 +351,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.956160545349121
+      Distance: 2.6652443408966064
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.07881856709718704
-        Y: 0.14606967568397522
-        Z: 0.2522208094596863
+        X: -0.13752485811710358
+        Y: 0.6299979090690613
+        Z: 0.2897275388240814
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

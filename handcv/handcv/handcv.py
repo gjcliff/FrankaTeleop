@@ -91,21 +91,44 @@ class HandCV(Node):
     def process_depth_image(self, annotated_image=None, detection_result=None):
         # first package the data into numpy arrays
         right_gesture = "None"
-        if len(detection_result.gestures) and detection_result.handedness[0][0].category_name == "Right":
-            # self.get_logger().info("Right Hand")
-            right_gesture = detection_result.gestures[0][0].category_name
-            # self.get_logger().info(right_gesture)
-        if len(detection_result.hand_landmarks) and detection_result.handedness[0][0].category_name == "Right":
+        right_index = None
+        left_gesture = "None"
+        left_index = None
+        if detection_result.gestures and detection_result.handedness:
+            # self.get_logger().info(f"detection_result.handedness: {detection_result.handedness}")
+            # self.get_logger().info(f"handedness size: {detection_result.handedness[0]}")
+            if len(detection_result.handedness) == 2:
+                if detection_result.handedness[0][0].category_name == "Left":
+                    left_gesture = detection_result.gestures[0][0].category_name
+                    right_gesture = detection_result.gestures[1][0].category_name
+                    left_index = 0
+                    right_index = 1
+                elif detection_result.handedness[0][0].category_name == "Right":
+                    right_gesture = detection_result.gestures[0][0].category_name
+                    left_gesture = detection_result.gestures[1][0].category_name
+                    left_index = 1
+                    right_index = 0
+            elif len(detection_result.handedness) == 1:
+                if detection_result.handedness[0][0].category_name == "Left":
+                    left_gesture = detection_result.gestures[0][0].category_name
+                    right_gesture = "None"
+                    left_index = 0
+                elif detection_result.handedness[0][0].category_name == "Right":
+                    right_gesture = detection_result.gestures[0][0].category_name
+                    left_gesture = "None"
+                    right_index = 0
+
+        if detection_result.hand_landmarks and right_index is not None:
             # self.get_logger().info("Right Hand")
             coords = np.array([[landmark.x * np.shape(annotated_image)[1],
                                 landmark.y * np.shape(annotated_image)[0]]
-                               for landmark in [detection_result.hand_landmarks[0][0],
-                                                detection_result.hand_landmarks[0][1],
-                                                detection_result.hand_landmarks[0][2],
-                                                detection_result.hand_landmarks[0][5],
-                                                detection_result.hand_landmarks[0][9],
-                                                detection_result.hand_landmarks[0][14],
-                                                detection_result.hand_landmarks[0][17]]])
+                               for landmark in [detection_result.hand_landmarks[right_index][0],
+                                                detection_result.hand_landmarks[right_index][1],
+                                                detection_result.hand_landmarks[right_index][2],
+                                                detection_result.hand_landmarks[right_index][5],
+                                                detection_result.hand_landmarks[right_index][9],
+                                                detection_result.hand_landmarks[right_index][14],
+                                                detection_result.hand_landmarks[right_index][17]]])
         # now perform the math on the numpy arrays. I think this is faster?
             length = coords.shape[0]
             sum_x = np.sum(coords[:, 0])
@@ -114,12 +137,12 @@ class HandCV(Node):
 
             # package the finger data into a pinch message
             pinch = Pinch()
-            pinch.wrist = FingerData(x=detection_result.hand_landmarks[0][0].x, y=detection_result.hand_landmarks[0][0].y)
-            pinch.thumb = FingerData(x=detection_result.hand_landmarks[0][4].x, y=detection_result.hand_landmarks[0][4].y)
-            pinch.index = FingerData(x=detection_result.hand_landmarks[0][8].x, y=detection_result.hand_landmarks[0][8].y)
-            pinch.middle = FingerData(x=detection_result.hand_landmarks[0][12].x, y=detection_result.hand_landmarks[0][12].y)
-            pinch.ring = FingerData(x=detection_result.hand_landmarks[0][16].x, y=detection_result.hand_landmarks[0][16].y)
-            pinch.pinky = FingerData(x=detection_result.hand_landmarks[0][20].x, y=detection_result.hand_landmarks[0][20].y)
+            pinch.wrist = FingerData(x=detection_result.hand_landmarks[right_index][0].x, y=detection_result.hand_landmarks[right_index][0].y)
+            pinch.thumb = FingerData(x=detection_result.hand_landmarks[right_index][4].x, y=detection_result.hand_landmarks[right_index][4].y)
+            pinch.index = FingerData(x=detection_result.hand_landmarks[right_index][8].x, y=detection_result.hand_landmarks[right_index][8].y)
+            pinch.middle = FingerData(x=detection_result.hand_landmarks[right_index][12].x, y=detection_result.hand_landmarks[right_index][12].y)
+            pinch.ring = FingerData(x=detection_result.hand_landmarks[right_index][16].x, y=detection_result.hand_landmarks[right_index][16].y)
+            pinch.pinky = FingerData(x=detection_result.hand_landmarks[right_index][20].x, y=detection_result.hand_landmarks[right_index][20].y)
             self.pinch_data_pub.publish(pinch)
 
         self.centroid[2] = self.depth_image[int(self.centroid[1]), int(self.centroid[0])]
