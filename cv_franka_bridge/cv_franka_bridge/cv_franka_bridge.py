@@ -185,7 +185,7 @@ class CvFrankaBridge(Node):
 
     def right_gesture_callback(self, msg):
         if msg.data == "Thumb_Up":
-            self.text_marker = self.create_text_marker("Paused")
+            self.text_marker = self.create_text_marker("Thumbs Up")
             self.move_robot = True
             self.offset = self.current_waypoint
             if self.count == 0:
@@ -196,6 +196,7 @@ class CvFrankaBridge(Node):
                 self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
                 self.count += 1
         elif msg.data == "Thumb_Down":
+            self.text_marker = self.create_text_marker("Thumbs Down")
             self.move_robot = False
             self.desired_ee_pose = self.get_ee_pose()
             phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
@@ -214,7 +215,7 @@ class CvFrankaBridge(Node):
             future = self.waypoint_client.call_async(planpath_request)
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
-            self.text_marker = self.create_text_marker("Gripper Closed")
+            self.text_marker = self.create_text_marker("Closed Fist")
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
@@ -229,7 +230,7 @@ class CvFrankaBridge(Node):
             future.add_done_callback(self.grasp_response_callback)
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
-            self.text_marker = self.create_text_marker("Tracking Right Hand")
+            self.text_marker = self.create_text_marker("Open Palm")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.075
@@ -244,6 +245,7 @@ class CvFrankaBridge(Node):
             self.gripper_force_control = False
 
         elif msg.data == "Pointing_Up" and self.gripper_ready and self.gripper_status == "Closed":
+            self.text_marker = self.create_text_marker("Pointing Up")
             self.gripper_force_control = True
             self.text_marker = self.create_text_marker("Increasing gripper force")
 
@@ -275,7 +277,7 @@ class CvFrankaBridge(Node):
     async def timer_callback(self):
         # if not self.gripper_homed:
         #      await self.home_gripper()
-        # self.text_marker_publisher.publish(self.text_marker)
+        self.text_marker_publisher.publish(self.text_marker)
         if self.move_robot:
             if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
                 if self.gripper_force < self.max_gripper_force:

@@ -6,7 +6,7 @@ from launch.actions import (DeclareLaunchArgument, Shutdown, IncludeLaunchDescri
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (PathJoinSubstitution, LaunchConfiguration, EqualsSubstitution,
                                   Command, FindExecutable, PythonExpression)
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from moveit_configs_utils import MoveItConfigsBuilder
 
 from ament_index_python import get_package_share_directory
@@ -45,9 +45,8 @@ def generate_launch_description():
         Node(
             package="usb_cam",
             executable="usb_cam_node_exe",
-            condition=IfCondition(EqualsSubstitution(
-                LaunchConfiguration("use_realsense"), "false")),
-            arguments=["-p framerate:=30.0 -p pixel_format:=yuyv"]
+            condition=UnlessCondition(LaunchConfiguration("use_realsense")),
+            arguments=["-p framerate:=30.0 -p pixel_format:=rgb8"]
         ),
         Node(
             package="handcv",

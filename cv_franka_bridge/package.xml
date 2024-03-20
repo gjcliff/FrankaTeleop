@@ -3,7 +3,7 @@
 <package format="3">
   <name>cv_franka_bridge</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>A package to teleoperate a franka robot using computer vision</description>
   <maintainer email="gclifford@u.northwestern.edu">Graham Clifford</maintainer>
   <license>APLv2</license>
 

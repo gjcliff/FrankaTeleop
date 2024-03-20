@@ -1,16 +1,14 @@
 # Franka Teleoperation
-* Graham Clifford
-* Winter 2024
 
 ## Introduction
 This repository consists of several ROS packages
 - franka_teleop: this custom package contains a ROS2 node which implements the
-MoveIt! Servo package. It's reponsible for controlling to the movement of the robot
+MoveIt! Servo package. It's responsible for controlling to the movement of the robot
 using linear and angular increments.
 - handcv: a Python ROS2 node combining Google Mediapipe gesture recognition and
 hand tracking to provide hand waypoints and state information.
 - cv_franka_bridge: A Python ROS2 node that subscribes to the information handcv
-provides, and processes it into commands for the franka_servo node.
+provides, and processes it into commands for the franka_teleop node.
 - numsr_franka_moveit_config: this custom package contains necessary configuration
 files for the Franka robot.
 - hand_interfaces: A package containing custom ROS2 messages and services.

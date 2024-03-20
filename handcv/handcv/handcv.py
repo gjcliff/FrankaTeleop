@@ -95,8 +95,6 @@ class HandCV(Node):
         left_gesture = "None"
         left_index = None
         if detection_result.gestures and detection_result.handedness:
-            # self.get_logger().info(f"detection_result.handedness: {detection_result.handedness}")
-            # self.get_logger().info(f"handedness size: {detection_result.handedness[0]}")
             if len(detection_result.handedness) == 2:
                 if detection_result.handedness[0][0].category_name == "Left":
                     left_gesture = detection_result.gestures[0][0].category_name
