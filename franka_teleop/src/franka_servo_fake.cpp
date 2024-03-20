@@ -1,4 +1,11 @@
-// load robot_model and robot_state
+/// \file
+/// \brief Implement moveit servo for the franka robot. This node receives an
+/// incremental amount to move linearly and rotationally around the x, y, and
+/// z axis and commands motion from the robot.
+///
+/// SERVERS:
+///     robot_waypoints (franka_teleop::srv::PlanPath): Set the current waypoint
+///     for the robot incrementally
 #include <Eigen/Geometry>
 #include <Eigen/src/Geometry/Quaternion.h>
 #include <Eigen/src/Geometry/Transform.h>
@@ -22,11 +29,11 @@ static Eigen::AngleAxisd y_step_size(0.00, Eigen::Vector3d::UnitY());
 static Eigen::AngleAxisd z_step_size(0.00, Eigen::Vector3d::UnitZ());
 bool move_robot = false;
 
+/// \brief Callback for the robot_waypoints_service. This service sets the
+/// global variables for linear and rotational step size.
 void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Request> request,
                        std::shared_ptr<franka_teleop::srv::PlanPath::Response>)
 {
-  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Request received");
-  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "Waypoint: " << request->waypoint.pose.position.x << " " << request->waypoint.pose.position.y << " " << request->waypoint.pose.position.z);
   linear_step_size = Eigen::Vector3d{
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
@@ -35,8 +42,6 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
   x_step_size = Eigen::AngleAxisd(request->angles[0], Eigen::Vector3d::UnitX());
   y_step_size = Eigen::AngleAxisd(request->angles[1], Eigen::Vector3d::UnitY());
   z_step_size = Eigen::AngleAxisd(request->angles[2], Eigen::Vector3d::UnitZ());
-
-  // Eigen::AngleAxisd angular_step_size(0.005, Eigen::Vector3d::UnitY());
 }
 
 int main(int argc, char* argv[])
@@ -65,10 +70,6 @@ int main(int argc, char* argv[])
   const planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor =
       createPlanningSceneMonitor(demo_node, servo_params);
   Servo servo = Servo(demo_node, servo_param_listener, planning_scene_monitor);
-
-  // Wait for some time, so that the planning scene is loaded in rviz.
-  // This is just for convenience, should not be used for sync in real application.
-  // std::this_thread::sleep_for(std::chrono::seconds(3));
 
   // For syncing pose tracking thread and main thread.
   std::mutex pose_guard;
@@ -116,14 +117,9 @@ int main(int argc, char* argv[])
       target_pose.pose.rotate(x_step_size);
       target_pose.pose.rotate(y_step_size);
       target_pose.pose.rotate(z_step_size);
-
-      // RCLCPP_INFO_STREAM(demo_node->get_logger(), "endeffectorpose translation: " << servo.getEndEffectorPose().translation() << " rotation: " << servo.getEndEffectorPose().rotation());
-
-
       rclcpp::spin_some(demo_node);
     }
     command_rate.sleep();
-
   }
 
   if (tracker_thread.joinable())

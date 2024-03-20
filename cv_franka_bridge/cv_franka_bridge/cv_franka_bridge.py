@@ -1,8 +1,29 @@
+"""
+Interpret gestures from the user, and convert waypoints into robot motion.
+
+This node interprets four gestures from a human user: thumbs up, thumbs down,
+closed fist, and open palm. These gestures are used to control whether or not
+the robot tracks the position of the users hand and to control the gripper.
+Waypoints received are transformed into the robot base link's frame. Two
+PD loops, one for position and one for orientation, are used to control the robot.
+
+SUBSCRIBERS:
+  + /waypoint (PoseStamped) - The 3D location of the hand's pose.
+  + /right_gesture (String) - The gesture that the right hand is making.
+PUBLISHERS:
+  + /text_marker (Marker) - The text marker that is published to the RViz.
+SERVICE CLIENTS:
+  + /robot_waypoints (PlanPath) - The service that plans and executes the robot's
+    motion.
+ACTION CLIENTS:
+  + /panda_gripper/homing (Homing) - The action server that homes the gripper.
+  + /panda_gripper/grasp (Grasp) - The action server that controls the gripper.
+
+"""
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from franka_teleop.srv import PlanPath
 
 from visualization_msgs.msg import Marker
-from hand_interfaces.msg import Pinch, FingerData
 
 from std_srvs.srv import Empty
 from std_msgs.msg import String
@@ -35,23 +56,16 @@ class CvFrankaBridge(Node):
         self.waypoint_subscriber = self.create_subscription(PoseStamped, 'waypoint', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
         # self.left_gesture_subscriber = self.create_subscription(String, 'left_gesture', self.left_gesture_callback, 10, callback_group=self.gesture_callback_group)
         self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
-        self.pinch_data_subscriber = self.create_subscription(Pinch, 'pinch_data', self.pinch_data_callback, 10)
 
         # create publishers
         self.text_marker_publisher = self.create_publisher(Marker, 'text_marker', 10)
 
         # create clients
-        # self.plan_and_execute_client = self.create_client(PlanPath, 'plan_and_execute_path')
         self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
         self.waypoint_client.wait_for_service(timeout_sec=2.0)
 
-        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
-        self.gripper_ready = True
-        self.gripper_status = "Open"
-        self.gripper_homed = False
-        self.gripper_force_control = False
-        self.gripper_force = 0.001
-        self.max_gripper_force = 10.0
+        # create timer
+        self.timer = self.create_timer(0.04, self.timer_callback)
 
         # create action clients
         self.gripper_homing_client = ActionClient(
@@ -70,10 +84,15 @@ class CvFrankaBridge(Node):
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self)
 
-        # create timer
-        self.timer = self.create_timer(0.04, self.timer_callback)
-
         # create class variables
+        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
+        self.gripper_ready = True
+        self.gripper_status = "Open"
+        self.gripper_homed = False
+        self.gripper_force_control = False
+        self.gripper_force = 0.001
+        self.max_gripper_force = 10.0
+
         self.offset = Pose()
         self.current_waypoint = None
         self.previous_waypoint = None
@@ -87,15 +106,6 @@ class CvFrankaBridge(Node):
         self.lower_distance_threshold = 3.0
         self.upper_distance_threshold = 10.0
 
-        # self.kp_coarse = 1.5
-        # self.ki_coarse = 0.01
-        # self.kd_coarse = 0.01
-        # self.kp_fine = 1.5
-        # self.ki_fine = 0.01
-        # self.kd_fine = 0.01
-        # self.max_output_coarse = 0.2
-        # self.max_output_fine = 0.05
-        # set the robot in coarse mode to start
         self.kp = 5.0
         self.ki = 0.0
         self.kd = 0.01
@@ -109,13 +119,10 @@ class CvFrankaBridge(Node):
         self.pitch_error_prior = 0
         self.yaw_error_prior = 0
 
-        self.pinch_data = None
         self.count = 0
 
-    def pinch_data_callback(self, msg):
-        self.pinch_data = msg
-
     def create_text_marker(self, text):
+        """Create a text marker."""
         marker = Marker()
         marker.header.frame_id = "panda_link0"
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -133,11 +140,13 @@ class CvFrankaBridge(Node):
         return marker
 
     def gripper_homing_callback(self, request, response):
+        """Callback for the gripper homing service."""
         goal = Homing.Goal()
         self.gripper_homing_client.send_goal_async(goal, feedback_callback=self.feedback_callback)
         return response
 
     def get_transform(self, target_frame, source_frame):
+        """Get the transform between two frames."""
         try:
             trans = self.buffer.lookup_transform(target_frame, source_frame, rclpy.time.Time())
             translation = trans.transform.translation
@@ -158,6 +167,7 @@ class CvFrankaBridge(Node):
             return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]
 
     def get_ee_pose(self):
+        """Get the current pose of the end-effector."""
         ee_home_pos, ee_home_rot = self.get_transform("panda_link0", "panda_hand_tcp")
         ee_pose = Pose()
         ee_pose.position.x = ee_home_pos.x
@@ -170,12 +180,16 @@ class CvFrankaBridge(Node):
         return ee_pose
 
     def waypoint_callback(self, msg):
+        """Callback for the waypoint subscriber."""
         if self.current_waypoint is None or self.previous_waypoint is None:
             self.current_waypoint = msg.pose
             self.previous_waypoint = Pose()
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
+
+        # filter out tiny movements to reduce jitter, and large errors from 
+        # camera
         if distance < self.lower_distance_threshold and distance > self.upper_distance_threshold:
             self.current_waypoint = msg.pose
             return
@@ -184,7 +198,22 @@ class CvFrankaBridge(Node):
             self.current_waypoint = msg.pose
 
     def right_gesture_callback(self, msg):
+        """
+        Callback for the right gesture subscriber.
+
+        The right gesture is used to control the robot's motion and the gripper.
+        
+        Args:
+        ----
+        msg (String): The gesture that the right hand is making.
+
+        Returns:
+        -------
+        None
+
+        """
         if msg.data == "Thumb_Up":
+            # if thumbs up, start tracking the user's hand
             self.text_marker = self.create_text_marker("Thumbs Up")
             self.move_robot = True
             self.offset = self.current_waypoint
@@ -196,6 +225,7 @@ class CvFrankaBridge(Node):
                 self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
                 self.count += 1
         elif msg.data == "Thumb_Down":
+            # if thumbs down, stop tracking the user's hand
             self.text_marker = self.create_text_marker("Thumbs Down")
             self.move_robot = False
             self.desired_ee_pose = self.get_ee_pose()
@@ -215,6 +245,7 @@ class CvFrankaBridge(Node):
             future = self.waypoint_client.call_async(planpath_request)
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
+            # if closed fist, close the gripper
             self.text_marker = self.create_text_marker("Closed Fist")
             self.gripper_ready = False
             self.gripper_status = "Closed"
@@ -230,6 +261,7 @@ class CvFrankaBridge(Node):
             future.add_done_callback(self.grasp_response_callback)
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
+            # if open palm, open the gripper
             self.text_marker = self.create_text_marker("Open Palm")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
@@ -244,15 +276,12 @@ class CvFrankaBridge(Node):
             self.gripper_status = "Open"
             self.gripper_force_control = False
 
-        elif msg.data == "Pointing_Up" and self.gripper_ready and self.gripper_status == "Closed":
-            self.text_marker = self.create_text_marker("Pointing Up")
-            self.gripper_force_control = True
-            self.text_marker = self.create_text_marker("Increasing gripper force")
-
         if msg.data != "Thumb_Up":
             self.count = 0
 
     def grasp_response_callback(self, future):
+        """Callback for the grasp response."""
+
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().info('Goal rejected :(')
@@ -263,37 +292,30 @@ class CvFrankaBridge(Node):
         self._get_result_future.add_done_callback(self.get_result_callback)
 
     def get_result_callback(self, future):
+        """Callback for the grasp result."""
+
         result = future.result().result
         self.get_logger().info(f'Result: {result}')
         self.gripper_ready = True
 
     def feedback_callback(self, feedback):
+        """Callback for the feedback from the gripper action server."""
+
         self.get_logger().info(f"Feedback: {feedback}")
 
     async def home_gripper(self):
+        """Home the gripper."""
+
         await self.gripper_homing_client.send_goal_async(Homing.Goal(), feedback_callback=self.feedback_callback)
         self.gripper_homed = True
 
     async def timer_callback(self):
-        # if not self.gripper_homed:
-        #      await self.home_gripper()
+        """Callback for the timer."""
+        # publish a text marker with the current gesture
         self.text_marker_publisher.publish(self.text_marker)
         if self.move_robot:
-            if self.gripper_ready and self.gripper_status == "Closed" and self.gripper_force_control:
-                if self.gripper_force < self.max_gripper_force:
-                    self.gripper_force += 1.0
-                self.get_logger().info(f"Setting gripper force to: {self.gripper_force}")
-                self.gripper_ready = False
-                self.gripper_status = "Closed"
-                grasp_goal = Grasp.Goal()
-                grasp_goal.width = 0.01
-                grasp_goal.speed = 0.1
-                grasp_goal.epsilon.inner = 0.08
-                grasp_goal.epsilon.outer = 0.08
-                grasp_goal.force = self.gripper_force
-                future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
-                future.add_done_callback(self.grasp_response_callback)
-
+            # find the end-effector's position relative to the offset, which was
+            # set the last time the user made a thumbs up gesture
             delta = Pose()
             delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
             delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters
@@ -316,9 +338,6 @@ class CvFrankaBridge(Node):
             pitch_error = desired_euler[1] - current_euler[1]
             yaw_error = desired_euler[2] - current_euler[2]
 
-            # self.get_logger().info(f"current_euler: {current_euler}")
-            # self.get_logger().info(f"desired_euler: {desired_euler}")
-
             roll_derivative = (roll_error - self.roll_error_prior)
             pitch_derivative = (pitch_error - self.pitch_error_prior)
             yaw_derivative = (yaw_error - self.yaw_error_prior)
@@ -328,9 +347,6 @@ class CvFrankaBridge(Node):
             yaw_output = self.kp_angle * yaw_error + self.kd_angle * yaw_derivative
 
             euler_output = [roll_output, -pitch_output, -yaw_output]
-            # euler_output = [0.0, 0.0, 0.0]
-
-            # self.get_logger().info(f"roll_output: {roll_output}, pitch_output: {pitch_output}, yaw_output: {yaw_output}")
 
             self.roll_error_prior = roll_error
             self.pitch_error_prior = pitch_error
@@ -359,6 +375,8 @@ class CvFrankaBridge(Node):
             planpath_request.angles = euler_output
             future = self.waypoint_client.call_async(planpath_request)
         else:
+            # even if the robot is not tracking the hand, we need to enforce
+            # that it stays in the same place
             if self.desired_ee_pose is not None:
                 # Get the current and desired positions and orientations of the end-effector
                 ee_pose = self.get_ee_pose()
@@ -403,9 +421,6 @@ class CvFrankaBridge(Node):
                 robot_move = PoseStamped()
                 robot_move.header.frame_id = "panda_link0"
                 robot_move.header.stamp = self.get_clock().now().to_msg()
-                # robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
-                # robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
-                # robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
                 robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
                 robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
                 robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
