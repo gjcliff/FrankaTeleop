@@ -59,6 +59,7 @@ class CvFrankaBridge(Node):
 
         # create publishers
         self.text_marker_publisher = self.create_publisher(Marker, 'text_marker', 10)
+        self.bounding_box_publisher = self.create_publisher(Marker, 'bounding_box', 10)
 
         # create clients
         self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
@@ -85,7 +86,7 @@ class CvFrankaBridge(Node):
         self.listener = TransformListener(self.buffer, self)
 
         # create class variables
-        self.text_marker = self.create_text_marker("Thumbs up to begin teleoperation")
+        self.text_marker = self.create_text_marker("Thumbs_up_to_begin_teleoperation")
         self.gripper_ready = True
         self.gripper_status = "Open"
         self.gripper_homed = False
@@ -119,6 +120,12 @@ class CvFrankaBridge(Node):
         self.pitch_error_prior = 0
         self.yaw_error_prior = 0
 
+        # bounding box variables
+        self.x_limits = [0.2, 0.6]
+        self.y_limits = [-0.25, 0.25]
+        self.z_limits = [0.15, 0.7]
+        self.bounding_box_marker = self.create_box_marker()
+
         self.count = 0
 
     def create_text_marker(self, text):
@@ -127,16 +134,48 @@ class CvFrankaBridge(Node):
         marker.header.frame_id = "panda_link0"
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.type = marker.TEXT_VIEW_FACING
+        marker.action = marker.ADD
         marker.text = text
         marker.pose.position.x = 0.0
         marker.pose.position.y = 0.0
         marker.pose.position.z = 1.0
         marker.scale.z = 0.1
-        marker.scale.x = 0.1
         marker.color.a = 1.0
         marker.color.r = 1.0
         marker.color.g = 0.0
-        marker.color.b = 0.0
+        marker.color.b = 1.0
+        return marker
+
+    def create_box_marker(self):
+        """Create a line strip that represents the bounding box."""
+        marker = Marker()
+        marker.header.frame_id = "panda_link0"
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.type = marker.LINE_STRIP
+        marker.action = marker.ADD
+        marker.points = [
+                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
+                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
+                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
+                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0]),
+                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
+                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
+                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
+                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
+                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
+                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
+                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
+                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
+                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
+                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
+                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
+                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0])
+                ]
+        marker.scale.x = 0.01
+        marker.color.a = 1.0
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
         return marker
 
     def gripper_homing_callback(self, request, response):
@@ -181,9 +220,8 @@ class CvFrankaBridge(Node):
 
     def waypoint_callback(self, msg):
         """Callback for the waypoint subscriber."""
-        if self.current_waypoint is None or self.previous_waypoint is None:
+        if self.current_waypoint is None:
             self.current_waypoint = msg.pose
-            self.previous_waypoint = Pose()
             return
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
@@ -191,10 +229,9 @@ class CvFrankaBridge(Node):
         # filter out tiny movements to reduce jitter, and large errors from 
         # camera
         if distance < self.lower_distance_threshold and distance > self.upper_distance_threshold:
-            self.current_waypoint = msg.pose
+            # self.current_waypoint = msg.pose
             return
         else:
-            self.previous_waypoint = self.current_waypoint
             self.current_waypoint = msg.pose
 
     def right_gesture_callback(self, msg):
@@ -214,7 +251,7 @@ class CvFrankaBridge(Node):
         """
         if msg.data == "Thumb_Up":
             # if thumbs up, start tracking the user's hand
-            self.text_marker = self.create_text_marker("Thumbs Up")
+            self.text_marker = self.create_text_marker("Thumbs_Up")
             self.move_robot = True
             self.offset = self.current_waypoint
             if self.count == 0:
@@ -226,7 +263,7 @@ class CvFrankaBridge(Node):
                 self.count += 1
         elif msg.data == "Thumb_Down":
             # if thumbs down, stop tracking the user's hand
-            self.text_marker = self.create_text_marker("Thumbs Down")
+            self.text_marker = self.create_text_marker("Thumbs_Down")
             self.move_robot = False
             self.desired_ee_pose = self.get_ee_pose()
             phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
@@ -246,7 +283,7 @@ class CvFrankaBridge(Node):
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
             # if closed fist, close the gripper
-            self.text_marker = self.create_text_marker("Closed Fist")
+            self.text_marker = self.create_text_marker("Closed_Fist")
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
@@ -262,7 +299,7 @@ class CvFrankaBridge(Node):
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
             # if open palm, open the gripper
-            self.text_marker = self.create_text_marker("Open Palm")
+            self.text_marker = self.create_text_marker("Open_Palm")
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.075
@@ -313,6 +350,7 @@ class CvFrankaBridge(Node):
         """Callback for the timer."""
         # publish a text marker with the current gesture
         self.text_marker_publisher.publish(self.text_marker)
+        self.bounding_box_publisher.publish(self.bounding_box_marker)
         if self.move_robot:
             # find the end-effector's position relative to the offset, which was
             # set the last time the user made a thumbs up gesture
