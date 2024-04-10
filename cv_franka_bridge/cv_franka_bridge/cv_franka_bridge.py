@@ -94,14 +94,15 @@ class CvFrankaBridge(Node):
         self.gripper_force = 0.001
         self.max_gripper_force = 10.0
 
-        self.offset = Pose()
         self.current_waypoint = None
         self.previous_waypoint = None
         self.offset = None
-        self.desired_ee_pose = None
-        self.initial_ee_pose = None
+        self.initial_ee_pose = Pose(position=Point(x=0.30674, y=-0.0014384, z=0.48529),
+                                    orientation=Quaternion(x=1.0, y=0.0, z=0.0, w=0.0))
+        self.desired_ee_pose = self.initial_ee_pose
         self.waypoints = []
         self.move_robot = False
+        self.prev_gesture = None
         self.start_time = self.get_clock().now()
 
         self.lower_distance_threshold = 3.0
@@ -113,7 +114,7 @@ class CvFrankaBridge(Node):
         self.kp_angle = 1.0
         self.ki_angle = 0.0
         self.kd_angle = 0.01
-        self.max_output = 0.5
+        self.max_output = 0.75
         self.integral_prior = 0
         self.position_error_prior = 0
         self.roll_error_prior = 0
@@ -222,14 +223,17 @@ class CvFrankaBridge(Node):
         """Callback for the waypoint subscriber."""
         if self.current_waypoint is None:
             self.current_waypoint = msg.pose
+            self.previous_waypoint = msg.pose
             return
+
         distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
                                   np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
 
         # filter out tiny movements to reduce jitter, and large errors from 
         # camera
         if distance < self.lower_distance_threshold and distance > self.upper_distance_threshold:
-            # self.current_waypoint = msg.pose
+            # experimental, might help with jerkiness when the use moves their hand too fast
+            self.offset = self.current_waypoint
             return
         else:
             self.current_waypoint = msg.pose
@@ -249,41 +253,18 @@ class CvFrankaBridge(Node):
         None
 
         """
-        if msg.data == "Thumb_Up":
+        if msg.data == "Thumb_Up" or msg.data == "Thumb_Down":
             # if thumbs up, start tracking the user's hand
-            self.text_marker = self.create_text_marker("Thumbs_Up")
-            self.move_robot = True
-            self.offset = self.current_waypoint
             if self.count == 0:
-                self.initial_ee_pose = self.get_ee_pose()
                 self.desired_ee_pose = self.get_ee_pose()
-                phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
-                quat = quaternion_from_euler(-np.pi, 0.0, 0.0)
-                self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
                 self.count += 1
-        elif msg.data == "Thumb_Down":
-            # if thumbs down, stop tracking the user's hand
-            self.text_marker = self.create_text_marker("Thumbs_Down")
-            self.move_robot = False
-            self.desired_ee_pose = self.get_ee_pose()
-            phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
-            quat = quaternion_from_euler(-np.pi, 0.0, phi)
-            self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
-            robot_move = PoseStamped()
-            robot_move.header.frame_id = "panda_link0"
-            robot_move.header.stamp = self.get_clock().now().to_msg()
-            robot_move.pose.position.x = 0.0
-            robot_move.pose.position.y = 0.0
-            robot_move.pose.position.z = 0.001
-            robot_move.pose.orientation.x = 1.0
 
-            planpath_request = PlanPath.Request()
-            planpath_request.waypoint = robot_move
-            future = self.waypoint_client.call_async(planpath_request)
+            self.text_marker = self.create_text_marker(msg.data)
+            self.move_robot = False
 
         elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
             # if closed fist, close the gripper
-            self.text_marker = self.create_text_marker("Closed_Fist")
+            self.text_marker = self.create_text_marker(msg.data)
             self.gripper_ready = False
             self.gripper_status = "Closed"
             self.gripper_force_control = False
@@ -299,7 +280,7 @@ class CvFrankaBridge(Node):
 
         elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
             # if open palm, open the gripper
-            self.text_marker = self.create_text_marker("Open_Palm")
+            self.text_marker = self.create_text_marker(msg.data)
             self.gripper_force = 3.0
             grasp_goal = Grasp.Goal()
             grasp_goal.width = 0.075
@@ -313,8 +294,20 @@ class CvFrankaBridge(Node):
             self.gripper_status = "Open"
             self.gripper_force_control = False
 
-        if msg.data != "Thumb_Up":
+        if msg.data != "Thumb_Up" and msg.data != "Thumb_Down":
             self.count = 0
+
+        if self.prev_gesture == "Thumb_Up" and msg.data != "Thumb_Up":
+            self.move_robot = True
+            self.offset = self.current_waypoint
+            self.initial_ee_pose = self.get_ee_pose()
+            self.desired_ee_pose = self.get_ee_pose()
+            phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
+            quat = quaternion_from_euler(-np.pi, 0.0, 0.0)
+            self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
+
+        self.prev_gesture = msg.data
+
 
     def grasp_response_callback(self, future):
         """Callback for the grasp response."""
@@ -360,118 +353,123 @@ class CvFrankaBridge(Node):
             delta.position.z = (self.current_waypoint.position.z - self.offset.position.z) / 1000 # convert to meters
 
             # Get the current and desired positions and orientations of the end-effector
-            ee_pose = self.get_ee_pose()
             self.desired_ee_pose.position.x = delta.position.z + self.initial_ee_pose.position.x
             self.desired_ee_pose.position.y = delta.position.x + self.initial_ee_pose.position.y
             self.desired_ee_pose.position.z = -delta.position.y + self.initial_ee_pose.position.z
-            current_euler = list(euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w]))
-            desired_euler = list(euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w]))
+        
+        try:
+            ee_pose = self.get_ee_pose()
+        except AttributeError as e:
+            return
 
-            # Orientation PID loops
-            if current_euler[0] < 0:
-                current_euler[0] += 2 * np.pi
-            if desired_euler[0] < 0:
-                desired_euler[0] += 2 * np.pi
-            roll_error = desired_euler[0] - current_euler[0]
-            pitch_error = desired_euler[1] - current_euler[1]
-            yaw_error = desired_euler[2] - current_euler[2]
+        current_euler = list(euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w]))
+        desired_euler = list(euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w]))
 
-            roll_derivative = (roll_error - self.roll_error_prior)
-            pitch_derivative = (pitch_error - self.pitch_error_prior)
-            yaw_derivative = (yaw_error - self.yaw_error_prior)
+        # Orientation PID loops
+        if current_euler[0] < 0:
+            current_euler[0] += 2 * np.pi
+        if desired_euler[0] < 0:
+            desired_euler[0] += 2 * np.pi
+        roll_error = desired_euler[0] - current_euler[0]
+        pitch_error = desired_euler[1] - current_euler[1]
+        yaw_error = desired_euler[2] - current_euler[2]
 
-            roll_output = self.kp_angle * roll_error - self.kd_angle * roll_derivative
-            pitch_output = self.kp_angle * pitch_error + self.kd_angle * pitch_derivative
-            yaw_output = self.kp_angle * yaw_error + self.kd_angle * yaw_derivative
+        roll_derivative = (roll_error - self.roll_error_prior)
+        pitch_derivative = (pitch_error - self.pitch_error_prior)
+        yaw_derivative = (yaw_error - self.yaw_error_prior)
 
-            euler_output = [roll_output, -pitch_output, -yaw_output]
+        roll_output = self.kp_angle * roll_error - self.kd_angle * roll_derivative
+        pitch_output = self.kp_angle * pitch_error + self.kd_angle * pitch_derivative
+        yaw_output = self.kp_angle * yaw_error + self.kd_angle * yaw_derivative
 
-            self.roll_error_prior = roll_error
-            self.pitch_error_prior = pitch_error
-            self.yaw_error_prior = yaw_error
+        euler_output = [roll_output, -pitch_output, -yaw_output]
 
-            # Position PID loop
-            position_error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
-                                   np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
+        self.roll_error_prior = roll_error
+        self.pitch_error_prior = pitch_error
+        self.yaw_error_prior = yaw_error
 
-            derivative = (position_error - self.position_error_prior)
-            output = self.kp * position_error + self.kd * derivative
-            self.position_error_prior = position_error
+        # Position PID loop
+        position_error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
+                               np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
 
-            if output > self.max_output:
-                output = self.max_output
+        derivative = (position_error - self.position_error_prior)
+        output = self.kp * position_error + self.kd * derivative
+        self.position_error_prior = position_error
 
-            robot_move = PoseStamped()
-            robot_move.header.frame_id = "panda_link0"
-            robot_move.header.stamp = self.get_clock().now().to_msg()
-            robot_move.pose.position.x = output * (self.desired_ee_pose.position.x - ee_pose.position.x)
-            robot_move.pose.position.y = -output * (self.desired_ee_pose.position.y - ee_pose.position.y)
-            robot_move.pose.position.z = -output * (self.desired_ee_pose.position.z - ee_pose.position.z)
+        if output > self.max_output:
+            output = self.max_output
 
-            planpath_request = PlanPath.Request()
-            planpath_request.waypoint = robot_move
-            planpath_request.angles = euler_output
-            future = self.waypoint_client.call_async(planpath_request)
-        else:
-            # even if the robot is not tracking the hand, we need to enforce
-            # that it stays in the same place
-            if self.desired_ee_pose is not None:
-                # Get the current and desired positions and orientations of the end-effector
-                ee_pose = self.get_ee_pose()
-                current_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
-                desired_euler = euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w])
+        robot_move = PoseStamped()
+        robot_move.header.frame_id = "panda_link0"
+        robot_move.header.stamp = self.get_clock().now().to_msg()
+        robot_move.pose.position.x = np.round(output * (self.desired_ee_pose.position.x - ee_pose.position.x),4)
+        robot_move.pose.position.y = np.round(-output * (self.desired_ee_pose.position.y - ee_pose.position.y),4)
+        robot_move.pose.position.z = np.round(-output * (self.desired_ee_pose.position.z - ee_pose.position.z),4)
 
-                # Orientation PID loops
-                if current_euler[0] < -np.pi:
-                    current_euler[0] += 2 * np.pi
-                if desired_euler[0] < -np.pi:
-                    desired_euler[0] += 2 * np.pi
-                roll_error = desired_euler[0] - current_euler[0]
-                pitch_error = desired_euler[1] - current_euler[1]
-                yaw_error = desired_euler[2] - current_euler[2]
-
-                roll_derivative = (roll_error - self.roll_error_prior)
-                pitch_derivative = (pitch_error - self.pitch_error_prior)
-                yaw_derivative = (yaw_error - self.yaw_error_prior)
-
-                self.roll_error_prior = roll_error
-                self.pitch_error_prior = pitch_error
-                self.yaw_error_prior = yaw_error
-
-                roll_output = self.kp * roll_error + self.kd * roll_derivative
-                pitch_output = self.kp * pitch_error + self.kd * pitch_derivative
-                yaw_output = self.kp * yaw_error + self.kd * yaw_derivative
-
-                euler_output = [roll_output, pitch_output, yaw_output]
-
-                # Position PID loop
-                ee_pose = self.get_ee_pose()
-                error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
-                                       np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
-
-                derivative = (error - self.position_error_prior)
-                output = self.kp * error + self.kd * derivative
-                self.position_error_prior = error
-
-                if output > self.max_output:
-                    output = self.max_output
-
-                robot_move = PoseStamped()
-                robot_move.header.frame_id = "panda_link0"
-                robot_move.header.stamp = self.get_clock().now().to_msg()
-                robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
-                robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
-                robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
-                robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
-                robot_move.pose.position.x = robot_move_x/robot_move_norm * output
-                robot_move.pose.position.y = robot_move_y/robot_move_norm * output
-                robot_move.pose.position.z = robot_move_z/robot_move_norm * output
-                self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
-
-                planpath_request = PlanPath.Request()
-                planpath_request.waypoint = robot_move
-                planpath_request.angles = euler_output
-                future = self.waypoint_client.call_async(planpath_request)
+        planpath_request = PlanPath.Request()
+        planpath_request.waypoint = robot_move
+        planpath_request.angles = euler_output
+        future = self.waypoint_client.call_async(planpath_request)
+        # else:
+        #     # even if the robot is not tracking the hand, we need to enforce
+        #     # that it stays in the same place
+        #
+        #     # Get the current and desired positions and orientations of the end-effector
+        #     ee_pose = self.get_ee_pose()
+        #     current_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
+        #     desired_euler = euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w])
+        #
+        #     # Orientation PID loops
+        #     if current_euler[0] < -np.pi:
+        #         current_euler[0] += 2 * np.pi
+        #     if desired_euler[0] < -np.pi:
+        #         desired_euler[0] += 2 * np.pi
+        #     roll_error = desired_euler[0] - current_euler[0]
+        #     pitch_error = desired_euler[1] - current_euler[1]
+        #     yaw_error = desired_euler[2] - current_euler[2]
+        #
+        #     roll_derivative = (roll_error - self.roll_error_prior)
+        #     pitch_derivative = (pitch_error - self.pitch_error_prior)
+        #     yaw_derivative = (yaw_error - self.yaw_error_prior)
+        #
+        #     self.roll_error_prior = roll_error
+        #     self.pitch_error_prior = pitch_error
+        #     self.yaw_error_prior = yaw_error
+        #
+        #     roll_output = self.kp * roll_error + self.kd * roll_derivative
+        #     pitch_output = self.kp * pitch_error + self.kd * pitch_derivative
+        #     yaw_output = self.kp * yaw_error + self.kd * yaw_derivative
+        #
+        #     euler_output = [roll_output, pitch_output, yaw_output]
+        #
+        #     # Position PID loop
+        #     ee_pose = self.get_ee_pose()
+        #     error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
+        #                            np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
+        #
+        #     derivative = (error - self.position_error_prior)
+        #     output = self.kp * error + self.kd * derivative
+        #     self.position_error_prior = error
+        #
+        #     if output > self.max_output:
+        #         output = self.max_output
+        #
+        #     robot_move = PoseStamped()
+        #     robot_move.header.frame_id = "panda_link0"
+        #     robot_move.header.stamp = self.get_clock().now().to_msg()
+        #     robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
+        #     robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
+        #     robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
+        #     robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
+        #     robot_move.pose.position.x = robot_move_x/robot_move_norm * output
+        #     robot_move.pose.position.y = robot_move_y/robot_move_norm * output
+        #     robot_move.pose.position.z = robot_move_z/robot_move_norm * output
+        #     self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
+        #
+        #     planpath_request = PlanPath.Request()
+        #     planpath_request.waypoint = robot_move
+        #     planpath_request.angles = euler_output
+        #     future = self.waypoint_client.call_async(planpath_request)
 
 def main(args=None):
     rclpy.init(args=args)

@@ -10,7 +10,6 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/integrate.launch.py']),
         ('share/' + package_name + '/launch', ['launch/integrate_servo.launch.py']),
         ('share/' + package_name + '/config', ['config/integrate.rviz']),
         ('share/' + package_name + '/config', ['config/integrate_servo.rviz']),

@@ -192,7 +192,7 @@ class HandCV(Node):
             self.get_logger().error(CvBridgeError)
 
     def timer_callback(self):
-        """Publish the annotated image and the waypoint for the arm."""
+        """Publish the annotated image and the waypoint for the arm"""
         if self.color_image is not None and self.depth_image is not None:
             annotated_image, detection_result = self.process_color_image()
             cv_image, right_gesture = self.process_depth_image(

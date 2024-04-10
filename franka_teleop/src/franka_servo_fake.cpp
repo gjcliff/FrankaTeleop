@@ -38,7 +38,7 @@ void waypoint_callback(const std::shared_ptr<franka_teleop::srv::PlanPath::Reque
     request->waypoint.pose.position.x,
     request->waypoint.pose.position.y,
     request->waypoint.pose.position.z};
-  RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: " << linear_step_size);
+  // RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), "linear_step_size: \n" << linear_step_size);
   x_step_size = Eigen::AngleAxisd(request->angles[0], Eigen::Vector3d::UnitX());
   y_step_size = Eigen::AngleAxisd(request->angles[1], Eigen::Vector3d::UnitY());
   z_step_size = Eigen::AngleAxisd(request->angles[2], Eigen::Vector3d::UnitZ());
