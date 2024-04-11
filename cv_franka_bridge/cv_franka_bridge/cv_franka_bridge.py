@@ -356,7 +356,14 @@ class CvFrankaBridge(Node):
             self.desired_ee_pose.position.x = delta.position.z + self.initial_ee_pose.position.x
             self.desired_ee_pose.position.y = delta.position.x + self.initial_ee_pose.position.y
             self.desired_ee_pose.position.z = -delta.position.y + self.initial_ee_pose.position.z
-        
+
+        if (self.desired_ee_pose.position.x < self.x_limits[0] or self.desired_ee_pose.position.x > self.x_limits[1]):
+            self.desired_ee_pose.position.x = self.x_limits[0] if self.desired_ee_pose.position.x < self.x_limits[0] else self.x_limits[1]
+        if (self.desired_ee_pose.position.y < self.y_limits[0] or self.desired_ee_pose.position.y > self.y_limits[1]):
+            self.desired_ee_pose.position.y = self.y_limits[0] if self.desired_ee_pose.position.y < self.y_limits[0] else self.y_limits[1]
+        if (self.desired_ee_pose.position.z < self.z_limits[0] or self.desired_ee_pose.position.z > self.z_limits[1]):
+            self.desired_ee_pose.position.z = self.z_limits[0] if self.desired_ee_pose.position.z < self.z_limits[0] else self.z_limits[1]
+
         try:
             ee_pose = self.get_ee_pose()
         except AttributeError as e:
