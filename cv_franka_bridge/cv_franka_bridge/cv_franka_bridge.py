@@ -48,6 +48,16 @@ class CvFrankaBridge(Node):
     def __init__(self):
         super().__init__('cv_franka_bridge')
 
+        # declare parameters
+        self.declare_parameter('x_limits', "0.2,0.6")
+        self.declare_parameter('y_limits', "-0.25,0.25")
+        self.declare_parameter('z_limits', "0.2,0.6")
+
+        # get parameters
+        self.x_limits = [float(value) for value in self.get_parameter('x_limits').get_parameter_value().string_value.split(",")]
+        self.y_limits = [float(value) for value in self.get_parameter('y_limits').get_parameter_value().string_value.split(",")]
+        self.z_limits = [float(value) for value in self.get_parameter('z_limits').get_parameter_value().string_value.split(",")]
+
         # create callback groups
         self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
         self.gesture_callback_group = MutuallyExclusiveCallbackGroup()
@@ -122,9 +132,9 @@ class CvFrankaBridge(Node):
         self.yaw_error_prior = 0
 
         # bounding box variables
-        self.x_limits = [0.2, 0.6]
-        self.y_limits = [-0.25, 0.25]
-        self.z_limits = [0.15, 0.7]
+        # self.x_limits = [0.2, 0.6]
+        # self.y_limits = [-0.25, 0.25]
+        # self.z_limits = [0.2, 0.6]
         self.bounding_box_marker = self.create_box_marker()
 
         self.count = 0

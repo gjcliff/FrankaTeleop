@@ -24,6 +24,16 @@ def generate_launch_description():
                                   description="whether or not to run franka teleop."),
             DeclareLaunchArgument(name="rviz_file", default_value="integrate_servo.rviz",
                                   description="rviz file to use."),
+            DeclareLaunchArgument(name="x_limits", default_value="0.2,0.6",
+                                  description="x limits for the bounding box of\
+                                          the end effector. Format: min,max"),
+            DeclareLaunchArgument(name="y_limits", default_value="-0.25,0.25",
+                                  description="y limits for the bounding box of\
+                                          the end effector. Format: min,max"),
+            DeclareLaunchArgument(name="z_limits", default_value="0.2,0.6",
+                                  description="z limits for the bounding box of\
+                                          the end effector. Format: min,max"),
+
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource([PathJoinSubstitution(
                     [FindPackageShare('franka_teleop'), 'launch', 'franka_rviz.launch.py'])]),
@@ -52,6 +62,11 @@ def generate_launch_description():
                 executable="cv_franka_bridge",
                 output="screen",
                 condition=IfCondition(LaunchConfiguration("use_realsense")),
+                parameters=[
+                    {"x_limits": LaunchConfiguration("x_limits")},
+                    {"y_limits": LaunchConfiguration("y_limits")},
+                    {"z_limits": LaunchConfiguration("z_limits")},
+                ],
             ),
             Node(
                 package='tf2_ros',
