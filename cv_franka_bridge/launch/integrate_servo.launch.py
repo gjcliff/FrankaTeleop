@@ -30,7 +30,7 @@ def generate_launch_description():
             DeclareLaunchArgument(name="y_limits", default_value="-0.25,0.25",
                                   description="y limits for the bounding box of\
                                           the end effector. Format: min,max"),
-            DeclareLaunchArgument(name="z_limits", default_value="0.2,0.6",
+            DeclareLaunchArgument(name="z_limits", default_value="0.1,0.6",
                                   description="z limits for the bounding box of\
                                           the end effector. Format: min,max"),
 

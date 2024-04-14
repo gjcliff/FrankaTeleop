@@ -124,7 +124,7 @@ class CvFrankaBridge(Node):
         self.kp_angle = 1.0
         self.ki_angle = 0.0
         self.kd_angle = 0.01
-        self.max_output = 0.75
+        self.max_output = 0.1
         self.integral_prior = 0
         self.position_error_prior = 0
         self.roll_error_prior = 0
@@ -422,6 +422,16 @@ class CvFrankaBridge(Node):
         robot_move.pose.position.x = np.round(output * (self.desired_ee_pose.position.x - ee_pose.position.x),4)
         robot_move.pose.position.y = np.round(-output * (self.desired_ee_pose.position.y - ee_pose.position.y),4)
         robot_move.pose.position.z = np.round(-output * (self.desired_ee_pose.position.z - ee_pose.position.z),4)
+        #     robot_move.header.frame_id = "panda_link0"
+        #     robot_move.header.stamp = self.get_clock().now().to_msg()
+        #     robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
+        #     robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
+        #     robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
+        #     robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
+        #     robot_move.pose.position.x = robot_move_x/robot_move_norm * output
+        #     robot_move.pose.position.y = robot_move_y/robot_move_norm * output
+        #     robot_move.pose.position.z = robot_move_z/robot_move_norm * output
+        #     self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
 
         planpath_request = PlanPath.Request()
         planpath_request.waypoint = robot_move
