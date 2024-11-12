@@ -30,7 +30,7 @@ pip install mediapipe
 sudo apt install ros-{ROS_DISTRO}-moveit
 ```
 
-### If you're in the MSR Lab at Northwestern
+### Setup
 Your robot may or may not be connected to the open internet. If it is, you can install
 moveit_servo and it's dependencies by running:
 ```sh
