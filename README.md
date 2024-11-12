@@ -1,5 +1,9 @@
 # Franka Teleoperation
 
+This is a ros2 Iron package implementing teleoperation on the Emika Franka Panda
+7 DOF robot. The package uses Google's MediaPipe hand tracking and gesture
+recognition in combination with MoveIt Servo to control the robot's movement.
+
 ## Introduction
 This repository consists of several ROS packages
 - franka_teleop: this custom package contains a ROS2 node which implements the
@@ -15,50 +19,102 @@ files for the Franka robot.
 
 ## How to Run
 ### Necessary packages:
-* Media Pipe:  
-```$ pip install mediapipe```
+* Media Pipe:
+```sh
+pip install mediapipe
+```
 * RealSense Camera
     * follow setup instructions here: https://github.com/IntelRealSense/realsense-ros/tree/ros2-development
-* MoveIt  
-```$ sudo apt install ros-{ROS_DISTRO}-moveit```
+* MoveIt
+```sh
+sudo apt install ros-{ROS_DISTRO}-moveit
+```
 
 ### If you're in the MSR Lab at Northwestern
-The Franka robots we have DO NOT have moveit_servo installed on their control
-computers. How unfortunate! Because of this, we'll have to copy over and build
-moveit_servo and any other dependencies we're missing.
-#### Install Necessary Packages  
-```$ git clone git@github.com:gjcliff/FrankaTeleop.git```  
-```$ git clone git@github.com:ros-planning/moveit2.git```  
-```$ git clone git@github.com:ros2/ros_testing.git```  
-* install these to some temporary location on your local drive.
+Your robot may or may not be connected to the open internet. If it is, you can install
+moveit_servo and it's dependencies by running:
+```sh
+sudo apt install ros-<distro>-moveit-servo
+```
+If you are like me and have a robot not connected to the internet, you'll have to
+clone the necessary repos on your host system and then copy them over to your
+workspace. Here's how to do that:
+#### Install Necessary Packages
+```sh
+git clone git@github.com:gjcliff/FrankaTeleop.git
+```
+```sh
+git clone git@github.com:ros-planning/moveit2.git
+```
+```sh
+git clone git@github.com:ros2/ros_testing.git
+```
+* install these to some temporary location on your host machine.
 
 #### Copy all packages over to the Franka control computer
-* Choose a reasonable and considerate directory on the Franka control computer
-to copy the moveit_servo, ros_testing, and Franka-Teleop repositories into.
-* **IMPORTANT** only copy the moveit_servo direectory from the moveit2 package.
-The computer already has most of the moveit directories you'll need, just not
-moveit_servo. You can find moveit_servo in "moveit2/moveit_ros/moveit_servo"
-* Copy our packages by running these commands (you must have an active ethernet
-connection to the Franka):  
-```$ scp FrankaTeleop/* student@station:/home/Documents/your/directory/here```  
-```$ scp moveit_servo/* student@station:/home/Documents/your/directory/here```  
-```$ scp ros_testing/* student@station:/home/Documents/your/directory/here```  
-* build each of these packages and then source their install/setup.bash files
-```$ source FrankaTeleop/install/setup.bash```  
-```$ source moveit_servo/install/setup.bash```  
-```$ source ros_testing/install/setup.bash```  
+Now we're going to copy these three packages into a ros workspace on the robot's
+computer in a specific order. We have to start with the lowest dependencies first
+and work up.
 
-You might not have to do this, as I installed these files myself on two of the
-robots under ~/Documents/graham_winter_project.  
+SSH into the robot in one terminal, and create the workspace on the robot if you
+haven't already:
+```sh
+# on robot
+ssh username@robot
+source /opt/ros/<distro>/setup.bash
+mkdir -p ~/Documents/ws/src/
+cd ~/Documents/ws/
+```
+ros_testing is a dependency of moveit_servo, so we need to build it first.
 
+Create a new terminal, and follow the next series of commands to copy
+ros_testing to the robot and build it:
+```sh
+# on host
+scp ros_testing/ user@robot:/home/user/Documents/ws/src/
+```
+```sh
+# on robot
+colcon build
+source install/setup.bash
+```
+Now that's done, we can do the same thing to moveit_servo:
+```sh
+# on host
+scp moveit_servo/* user@robot:/home/Documents/your/directory/here
+```
+```sh
+# on robot
+colcon build
+source install/setup.bash
+```
+And finally, we can copy over the FrankaTeleop package:
+```sh
+# on host
+scp FrankaTeleop/* user@robot:/home/Documents/ws/FrankaTeleop
+```
+```sh
+# on robot
+colcon build
+source install/setup.bash
+```
 #### Running Commands
 **Real Robot**:
-Run on robot: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=false robot_ip:=panda0.robot use_realsense:=false run_franka_teleop:=true
+Run on robot:
+```sh
+ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=false robot_ip:=panda0.robot use_realsense:=false run_franka_teleop:=true
+```
 
-Run on your computer: ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=true robot_ip:=panda0.robot use_realsense:=true run_franka_teleop:=false  
+Run on your computer:
+```sh
+ros2 launch cv_franka_bridge integrate_servo.launch.py use_fake_hardware:=false use_rviz:=true robot_ip:=panda0.robot use_realsense:=true run_franka_teleop:=false
+```
 
 **Simulated Robot**:
-Run on your computer: ros2 launch cv_franka_bridge integrate_servo.launch.py
+Run on your computer:
+```sh
+ros2 launch cv_franka_bridge integrate_servo.launch.py
+```
 
 #### How to Control the Robot
 Here's a list of the gestures the system recognizes and what they do:
