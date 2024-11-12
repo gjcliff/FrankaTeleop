@@ -1,6 +1,6 @@
 # Franka Teleoperation
 
-This is a ros2 Iron package implementing teleoperation on the Emika Franka Panda
+This is a ROS2 Iron package implementing teleoperation on the Emika Franka Panda
 7 DOF robot. The package uses Google's MediaPipe hand tracking and gesture
 recognition in combination with MoveIt Servo to control the robot's movement.
 
