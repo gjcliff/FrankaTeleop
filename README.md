@@ -7,6 +7,35 @@ recognition in combination with MoveIt Servo to control the robot's movement.
 Check out the post for this project on my portfolio website: [Franka
 Teleoperation](https://graham-clifford.com/Robot-Arm-Teleoperation-Through-Computer-Vision-Hand-Tracking/)
 
+     ┌──────────────────────────┐
+     │ RealSense D435           │
+     │ (RGB camera frames)      │
+     └────────────┬─────────────┘
+                  │
+                  ▼
+ ┌─────────────────────────────────────┐
+ │ handcv (Python)                     │
+ │ - uses MediaPipe                    │
+ │ - detects gestures, 3D hand position│
+ │ - publishes HandPose / Pinch msgs   │
+ └────────────────┬────────────────────┘
+                  │
+                  ▼
+     ┌──────────────────────────────┐
+     │ cv_franka_bridge (Python)    │
+     │ - subscribes to handcv data  │
+     │ - computes robot commands    │
+     │ - calls franka_teleop service│
+     └────────────┬─────────────────┘
+                  │
+                  ▼
+ ┌──────────────────────────────────────┐
+ │ franka_teleop (C++)                  │
+ │ - MoveIt Servo node                  │
+ │ - publishes trajectory/servo commands│
+ │ - uses numsr_franka_moveit_config    │
+ └──────────────────────────────────────┘
+
 ## Introduction
 This repository consists of several ROS packages
 - franka_teleop: this custom package contains a ROS2 node which implements the

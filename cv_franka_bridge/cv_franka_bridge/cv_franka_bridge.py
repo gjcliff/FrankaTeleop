@@ -131,10 +131,6 @@ class CvFrankaBridge(Node):
         self.pitch_error_prior = 0
         self.yaw_error_prior = 0
 
-        # bounding box variables
-        # self.x_limits = [0.2, 0.6]
-        # self.y_limits = [-0.25, 0.25]
-        # self.z_limits = [0.2, 0.6]
         self.bounding_box_marker = self.create_box_marker()
 
         self.count = 0
@@ -422,81 +418,11 @@ class CvFrankaBridge(Node):
         robot_move.pose.position.x = np.round(output * (self.desired_ee_pose.position.x - ee_pose.position.x),4)
         robot_move.pose.position.y = np.round(-output * (self.desired_ee_pose.position.y - ee_pose.position.y),4)
         robot_move.pose.position.z = np.round(-output * (self.desired_ee_pose.position.z - ee_pose.position.z),4)
-        #     robot_move.header.frame_id = "panda_link0"
-        #     robot_move.header.stamp = self.get_clock().now().to_msg()
-        #     robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
-        #     robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
-        #     robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
-        #     robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
-        #     robot_move.pose.position.x = robot_move_x/robot_move_norm * output
-        #     robot_move.pose.position.y = robot_move_y/robot_move_norm * output
-        #     robot_move.pose.position.z = robot_move_z/robot_move_norm * output
-        #     self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
 
         planpath_request = PlanPath.Request()
         planpath_request.waypoint = robot_move
         planpath_request.angles = euler_output
         future = self.waypoint_client.call_async(planpath_request)
-        # else:
-        #     # even if the robot is not tracking the hand, we need to enforce
-        #     # that it stays in the same place
-        #
-        #     # Get the current and desired positions and orientations of the end-effector
-        #     ee_pose = self.get_ee_pose()
-        #     current_euler = euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w])
-        #     desired_euler = euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w])
-        #
-        #     # Orientation PID loops
-        #     if current_euler[0] < -np.pi:
-        #         current_euler[0] += 2 * np.pi
-        #     if desired_euler[0] < -np.pi:
-        #         desired_euler[0] += 2 * np.pi
-        #     roll_error = desired_euler[0] - current_euler[0]
-        #     pitch_error = desired_euler[1] - current_euler[1]
-        #     yaw_error = desired_euler[2] - current_euler[2]
-        #
-        #     roll_derivative = (roll_error - self.roll_error_prior)
-        #     pitch_derivative = (pitch_error - self.pitch_error_prior)
-        #     yaw_derivative = (yaw_error - self.yaw_error_prior)
-        #
-        #     self.roll_error_prior = roll_error
-        #     self.pitch_error_prior = pitch_error
-        #     self.yaw_error_prior = yaw_error
-        #
-        #     roll_output = self.kp * roll_error + self.kd * roll_derivative
-        #     pitch_output = self.kp * pitch_error + self.kd * pitch_derivative
-        #     yaw_output = self.kp * yaw_error + self.kd * yaw_derivative
-        #
-        #     euler_output = [roll_output, pitch_output, yaw_output]
-        #
-        #     # Position PID loop
-        #     ee_pose = self.get_ee_pose()
-        #     error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
-        #                            np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
-        #
-        #     derivative = (error - self.position_error_prior)
-        #     output = self.kp * error + self.kd * derivative
-        #     self.position_error_prior = error
-        #
-        #     if output > self.max_output:
-        #         output = self.max_output
-        #
-        #     robot_move = PoseStamped()
-        #     robot_move.header.frame_id = "panda_link0"
-        #     robot_move.header.stamp = self.get_clock().now().to_msg()
-        #     robot_move_x = (self.desired_ee_pose.position.x - ee_pose.position.x)
-        #     robot_move_y = -(self.desired_ee_pose.position.y - ee_pose.position.y)
-        #     robot_move_z = -(self.desired_ee_pose.position.z - ee_pose.position.z)
-        #     robot_move_norm = np.linalg.norm(np.array([robot_move_x, robot_move_y, robot_move_z]))
-        #     robot_move.pose.position.x = robot_move_x/robot_move_norm * output
-        #     robot_move.pose.position.y = robot_move_y/robot_move_norm * output
-        #     robot_move.pose.position.z = robot_move_z/robot_move_norm * output
-        #     self.get_logger().info(f"linear move: {np.linalg.norm(np.array([robot_move.pose.position.x, robot_move.pose.position.y, robot_move.pose.position.z]) - np.array([0.0, 0.0, 0.0]))}")
-        #
-        #     planpath_request = PlanPath.Request()
-        #     planpath_request.waypoint = robot_move
-        #     planpath_request.angles = euler_output
-        #     future = self.waypoint_client.call_async(planpath_request)
 
 def main(args=None):
     rclpy.init(args=args)
