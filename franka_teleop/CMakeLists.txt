@@ -18,8 +18,7 @@ find_package(moveit_servo REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-add_executable(franka_servo_fake src/franka_servo_fake.cpp)
-add_executable(franka_servo_real src/franka_servo_real.cpp)
+add_executable(franka_servo src/franka_servo.cpp)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     "srv/PlanPath.srv"
@@ -28,17 +27,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 ament_export_dependencies(rosidl_default_runtime)
 
 ament_target_dependencies(
-  franka_servo_fake
-  Eigen3
-  rclcpp
-  geometry_msgs
-  std_srvs
-  moveit
-  moveit_servo
-)
-
-ament_target_dependencies(
-  franka_servo_real
+  franka_servo
   Eigen3
   rclcpp
   geometry_msgs
@@ -48,8 +37,7 @@ ament_target_dependencies(
 )
 
 install(TARGETS
-    franka_servo_fake
-    franka_servo_real
+    franka_servo
     DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -67,18 +55,12 @@ install(DIRECTORY
 rosidl_get_typesupport_target(cpp_typesupport_target
     ${PROJECT_NAME} rosidl_typesupport_cpp)
 
-target_link_libraries(franka_servo_fake "${cpp_typesupport_target}")
-target_link_libraries(franka_servo_real "${cpp_typesupport_target}")
+target_link_libraries(franka_servo "${cpp_typesupport_target}")
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
 
-  # comment the line when a copyright and license is added to all source 
   set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()

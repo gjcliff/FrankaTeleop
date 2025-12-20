@@ -65,7 +65,7 @@ def generate_launch_description():
                                   description="IP address of the robot"),
             Node(
                 package="franka_teleop",
-                executable="franka_servo_fake",
+                executable="franka_servo",
                 parameters=[
                     servo_params,
                     low_pass_filter_coeff,
@@ -78,7 +78,7 @@ def generate_launch_description():
             ),
             Node(
                 package="franka_teleop",
-                executable="franka_servo_real",
+                executable="franka_servo",
                 parameters=[
                     servo_params,
                     low_pass_filter_coeff,
@@ -97,25 +97,25 @@ def generate_launch_description():
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
-                condition=IfCondition(
-                    LaunchConfiguration("use_fake_hardware")),
                 remappings=[('joint_states', 'franka/joint_states')],
                 parameters=[moveit_config_fake.robot_description, PathJoinSubstitution([
                     FindPackageShare(
                         "numsr_franka_moveit_config"), "config", "panda_mock_controllers.yaml"
                 ])],
+                condition=IfCondition(
+                    LaunchConfiguration("use_fake_hardware")),
                 output="both",
             ),
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
-                condition=UnlessCondition(
-                    LaunchConfiguration("use_fake_hardware")),
                 remappings=[('joint_states', 'franka/joint_states')],
                 parameters=[moveit_config_real.robot_description, PathJoinSubstitution([
                     FindPackageShare(
                         "numsr_franka_moveit_config"), "config", "panda_ros_controllers.yaml"
                 ])],
+                condition=UnlessCondition(
+                    LaunchConfiguration("use_fake_hardware")),
                 output="both",
             ),
             Node(
