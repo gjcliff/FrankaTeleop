@@ -55,8 +55,7 @@ provides, and processes it into commands for the franka_teleop node.
 files for the Franka robot.
 - hand_interfaces: A package containing custom ROS2 messages and services.
 
-## How to Run
-### Necessary packages:
+## Install Prequisites
 * Media Pipe:
 ```sh
 pip install mediapipe
@@ -65,7 +64,8 @@ pip install mediapipe
     * follow setup instructions here: https://github.com/IntelRealSense/realsense-ros/tree/ros2-development
 * MoveIt
 ```sh
-sudo apt install ros-{ROS_DISTRO}-moveit
+sudo apt install ros-<distro>-moveit
+sudo apt install ros-<distro>-moveit-servo
 ```
 
 ### Setup
