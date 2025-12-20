@@ -1,1 +1,2 @@
 mediapipe==0.10.31
+# opencv-python
