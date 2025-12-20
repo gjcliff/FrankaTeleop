@@ -1,0 +1,3 @@
+[submodule "external/franka_ros2"]
+	path = external/franka_ros2
+	url = git@github.com:gjcliff/franka_ros2.git

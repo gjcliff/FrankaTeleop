@@ -1,0 +1,56 @@
+include: [./external/franka_ros2/docker-compose.yml]
+services:
+  rviz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "franka_teleop:latest"
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # - /dev/shm:/dev/shm
+    network_mode: host
+    ipc: host  
+    init: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ros2 run rviz2 rviz2
+
+  franka_ros2:
+    build:
+      args:
+        - USER_UID=1001
+        - USER_GID=1001
+    init: true
+    network_mode: host
+    entrypoint: ""
+    command: >
+      bash -c "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true"
+
+  realsense:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: "franka_teleop:latest"
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - /dev:/dev
+      # - /dev/shm:/dev/shm
+    device_cgroup_rules:
+      - 'c 81:* rmw'
+      - 'c 189:* rmw'
+    network_mode: host
+    ipc: host  
+    init: true
+    tty: true
+    command: ros2 launch realsense2_camera rs_launch.py pointcloud.enable:=true
