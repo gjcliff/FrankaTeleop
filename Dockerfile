@@ -13,6 +13,7 @@ RUN apt-get update \
     cmake \
     git-all \
     software-properties-common \
+    python3-pip \
  && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update \
@@ -29,3 +30,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 ARG DEBIAN_FRONTEND=dialog
+
+WORKDIR /ros2_ws/src/
+
+COPY hand_interfaces/ ./hand_interfaces/
+COPY cv_franka_bridge/ ./cv_franka_bridge/
+
+WORKDIR /ros2_ws/
+COPY requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt --break-system-packages
