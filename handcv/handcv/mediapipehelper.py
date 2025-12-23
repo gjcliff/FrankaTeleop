@@ -4,31 +4,18 @@ import mediapipe as mp
 
 from handcv.drawing_tools import (
     HAND_CONNECTIONS,
+    NormalizedLandmark,
+    NormalizedLandmarkList,
     get_default_hand_connections_style,
     get_default_hand_landmarks_style,
     draw_landmarks,
 )
-from mediapipe.framework.formats import landmark_pb2
+
 import numpy as np
 import cv2
 import os
-import dataclasses
 
 from ament_index_python import get_package_share_directory
-
-
-@dataclasses.dataclass
-class NormalizedLandmark:
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
-
-
-@dataclasses.dataclass
-class NormalizedLandmarkList:
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
 
 
 class MediaPipeRos:
@@ -40,29 +27,30 @@ class MediaPipeRos:
         self.HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
         self.landmarker = self.initialize_mediapipe()
 
-    def draw_landmarks_on_image(self, rgb_image, detection_result):
+    def draw_landmarks_on_image(self, rgb_image, detection_result, logger):
         hand_landmarks_list = detection_result.hand_landmarks
         handedness_list = detection_result.handedness
         annotated_image = np.copy(rgb_image)
 
-        # Loop through the detected hands to visualize.
+        # loop through the detected hands to visualize.
         for idx in range(len(hand_landmarks_list)):
             hand_landmarks = hand_landmarks_list[idx]
             handedness = handedness_list[idx]
 
-            # Draw the hand landmarks.
-            hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
-            hand_landmarks_proto.landmark.extend(
+            # draw the hand landmarks.
+            hand_landmarks_new_list = NormalizedLandmarkList()
+            hand_landmarks_new_list.landmark.extend(
                 [
-                    landmark_pb2.NormalizedLandmark(
+                    NormalizedLandmark(
                         x=landmark.x, y=landmark.y, z=landmark.z
                     )
                     for landmark in hand_landmarks
                 ]
             )
             draw_landmarks(
+                logger,
                 annotated_image,
-                hand_landmarks_proto,
+                hand_landmarks_new_list,
                 HAND_CONNECTIONS,
                 get_default_hand_landmarks_style(),
                 get_default_hand_connections_style(),
@@ -86,6 +74,8 @@ class MediaPipeRos:
                 self.FONT_THICKNESS,
                 cv2.LINE_AA,
             )
+            cv2.imshow("window", annotated_image)
+            cv2.waitKey(1)
 
         return annotated_image
 

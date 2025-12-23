@@ -5,7 +5,26 @@ import math
 import cv2
 from typing import Mapping, Tuple, Optional, List, Union
 
-from mediapipe.framework.formats import landmark_pb2
+# from mediapipe.framework.formats import landmark_pb2
+
+
+@dataclasses.dataclass
+class NormalizedLandmark:
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+    visibility: float = 1.0
+    presence: float = 1.0
+
+    def HasField(self, field_name: str = ""):
+        return hasattr(self, field_name)
+
+
+@dataclasses.dataclass
+class NormalizedLandmarkList:
+    landmark: List[NormalizedLandmark] = dataclasses.field(
+        default_factory=list
+    )
 
 
 class HandLandmark(enum.IntEnum):
@@ -227,8 +246,9 @@ def _normalized_to_pixel_coordinates(
 
 
 def draw_landmarks(
+    logger,
     image: np.ndarray,
-    landmark_list: landmark_pb2.NormalizedLandmarkList,
+    landmark_list: NormalizedLandmarkList,
     connections: Optional[List[Tuple[int, int]]] = None,
     landmark_drawing_spec: Union[
         DrawingSpec, Mapping[int, DrawingSpec]
@@ -263,6 +283,7 @@ def draw_landmarks(
         b) If any connetions contain invalid landmark index.
     """
     if not landmark_list:
+        logger.info("returning")
         return
     if image.shape[2] != _BGR_CHANNELS:
         raise ValueError("Input image must contain three channel bgr data.")
@@ -276,6 +297,13 @@ def draw_landmarks(
             landmark.HasField("presence")
             and landmark.presence < _PRESENCE_THRESHOLD
         ):
+            logger.info("continuing")
+            logger.info(
+                f"landmark.HasField('visibility'): {landmark.HasField('visibility')}"
+            )
+            logger.info(
+                f"landmark.HasField('presence'): {landmark.HasField('presence')}"
+            )
             continue
         landmark_px = _normalized_to_pixel_coordinates(
             landmark.x, landmark.y, image_cols, image_rows

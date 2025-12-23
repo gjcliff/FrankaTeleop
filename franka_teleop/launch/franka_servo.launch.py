@@ -1,14 +1,26 @@
-import os 
+import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, Shutdown, DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import (
+    ExecuteProcess,
+    Shutdown,
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+)
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
 from launch_param_builder import ParameterBuilder
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, FindExecutable, Command, AndSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    FindExecutable,
+    Command,
+    AndSubstitution,
+)
 from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+
 
 def generate_launch_description():
     moveit_config_fake = (
@@ -30,11 +42,13 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
-     # Get parameters for the Servo node
+    # Get parameters for the Servo node
     servo_params = {
-        "moveit_servo": ParameterBuilder("numsr_franka_moveit_config")
-        .yaml("config/panda_simulated_config.yaml")
-        .to_dict()
+        "moveit_servo": (
+            ParameterBuilder("moveit_servo")
+            .yaml("config/panda_simulated_config.yaml")
+            .to_dict()
+        )
     }
 
     # This filter parameter should be >1. Increase it for greater smoothing but slower motion.
@@ -48,8 +62,9 @@ def generate_launch_description():
     ]:
         load_controllers += [
             ExecuteProcess(
-                cmd=["ros2 run controller_manager spawner {}".format(
-                    controller)],
+                cmd=[
+                    "ros2 run controller_manager spawner {}".format(controller)
+                ],
                 shell=True,
                 output="screen",
             )
@@ -57,12 +72,21 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument(name="use_fake_hardware", default_value="true",
-                                  description="whether or not to use fake hardware."),
-            DeclareLaunchArgument(name="use_rviz", default_value="true",
-                                  description="whether or not to use rviz."),
-            DeclareLaunchArgument(name="robot_ip", default_value="dont-care",
-                                  description="IP address of the robot"),
+            DeclareLaunchArgument(
+                name="use_fake_hardware",
+                default_value="true",
+                description="whether or not to use fake hardware.",
+            ),
+            DeclareLaunchArgument(
+                name="use_rviz",
+                default_value="true",
+                description="whether or not to use rviz.",
+            ),
+            DeclareLaunchArgument(
+                name="robot_ip",
+                default_value="dont-care",
+                description="IP address of the robot",
+            ),
             Node(
                 package="franka_teleop",
                 executable="franka_servo",
@@ -73,7 +97,9 @@ def generate_launch_description():
                     moveit_config_fake.robot_description_semantic,
                     moveit_config_fake.robot_description_kinematics,
                 ],
-                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=IfCondition(
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="screen",
             ),
             Node(
@@ -86,59 +112,90 @@ def generate_launch_description():
                     moveit_config_fake.robot_description_semantic,
                     moveit_config_fake.robot_description_kinematics,
                 ],
-                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=UnlessCondition(
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="screen",
             ),
             ExecuteProcess(
-                cmd=["ros2 run controller_manager spawner joint_state_broadcaster"],
+                cmd=[
+                    "ros2 run controller_manager spawner joint_state_broadcaster"
+                ],
                 shell=True,
                 output="screen",
             ),
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
-                remappings=[('joint_states', 'franka/joint_states')],
-                parameters=[moveit_config_fake.robot_description, PathJoinSubstitution([
-                    FindPackageShare(
-                        "numsr_franka_moveit_config"), "config", "panda_mock_controllers.yaml"
-                ])],
+                remappings=[("joint_states", "franka/joint_states")],
+                parameters=[
+                    moveit_config_fake.robot_description,
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("numsr_franka_moveit_config"),
+                            "config",
+                            "panda_mock_controllers.yaml",
+                        ]
+                    ),
+                ],
                 condition=IfCondition(
-                    LaunchConfiguration("use_fake_hardware")),
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="both",
             ),
             Node(
                 package="controller_manager",
                 executable="ros2_control_node",
-                remappings=[('joint_states', 'franka/joint_states')],
-                parameters=[moveit_config_real.robot_description, PathJoinSubstitution([
-                    FindPackageShare(
-                        "numsr_franka_moveit_config"), "config", "panda_ros_controllers.yaml"
-                ])],
+                remappings=[("joint_states", "franka/joint_states")],
+                parameters=[
+                    moveit_config_real.robot_description,
+                    PathJoinSubstitution(
+                        [
+                            FindPackageShare("numsr_franka_moveit_config"),
+                            "config",
+                            "panda_ros_controllers.yaml",
+                        ]
+                    ),
+                ],
                 condition=UnlessCondition(
-                    LaunchConfiguration("use_fake_hardware")),
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="both",
             ),
             Node(
-                package='joint_state_publisher',
-                executable='joint_state_publisher',
-                name='joint_state_publisher',
+                package="joint_state_publisher",
+                executable="joint_state_publisher",
+                name="joint_state_publisher",
                 parameters=[
-                    {'source_list': ['franka/joint_states', 'panda_gripper/joint_states'], 'rate': 30}],
-                ),
+                    {
+                        "source_list": [
+                            "franka/joint_states",
+                            "panda_gripper/joint_states",
+                        ],
+                        "rate": 30,
+                    }
+                ],
+            ),
             Node(
                 package="tf2_ros",
                 executable="static_transform_publisher",
                 name="static_transform_publisher",
                 on_exit=Shutdown(),
                 output="log",
-                arguments=["--frame-id", "world",
-                           "--child-frame-id", "panda_link0"],
+                arguments=[
+                    "--frame-id",
+                    "world",
+                    "--child-frame-id",
+                    "panda_link0",
+                ],
             ),
             Node(
                 package="robot_state_publisher",
                 executable="robot_state_publisher",
                 name="robot_state_publisher",
-                condition=IfCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=IfCondition(
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="both",
                 parameters=[moveit_config_fake.robot_description],
             ),
@@ -146,13 +203,16 @@ def generate_launch_description():
                 package="robot_state_publisher",
                 executable="robot_state_publisher",
                 name="robot_state_publisher",
-                condition=UnlessCondition(LaunchConfiguration("use_fake_hardware")),
+                condition=UnlessCondition(
+                    LaunchConfiguration("use_fake_hardware")
+                ),
                 output="both",
                 parameters=[moveit_config_real.robot_description],
             ),
-
             ExecuteProcess(
-                cmd=["ros2 run controller_manager spawner panda_arm_controller"],
+                cmd=[
+                    "ros2 run controller_manager spawner panda_arm_controller"
+                ],
                 shell=True,
                 output="screen",
             ),

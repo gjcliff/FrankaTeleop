@@ -58,12 +58,15 @@ class HandCV(Node):
 
         # create subscribers
         self.color_image_raw_sub = self.create_subscription(
-            Image, "/camera/color/image_raw", self.color_image_raw_callback, 10
+            Image,
+            "/camera/camera/color/image_raw",
+            self.color_image_raw_callback,
+            10,
         )
 
         self.depth_image_raw_sub = self.create_subscription(
             Image,
-            "/camera/aligned_depth_to_color/image_raw",
+            "/camera/camera/aligned_depth_to_color/image_raw",
             self.depth_image_raw_callback,
             10,
         )
@@ -89,13 +92,13 @@ class HandCV(Node):
 
     def depth_image_raw_callback(self, msg):
         """Capture depth images and convert them to OpenCV images."""
-        self.depth_image = self.bridge.imgmsg_to_cv2(
+        self.depth_image: cv.Mat = self.bridge.imgmsg_to_cv2(
             msg, desired_encoding="passthrough"
         )
         self.depth_image = cv.flip(self.depth_image, 1)
 
     def color_image_raw_callback(self, msg):
-        """Cpature color images and convert them to OpenCV images."""
+        """Capture color images and convert them to OpenCV images."""
         self.color_image = self.bridge.imgmsg_to_cv2(
             msg, desired_encoding="passthrough"
         )
@@ -187,9 +190,12 @@ class HandCV(Node):
             sum_y = np.sum(coords[:, 1])
             self.centroid = np.array([sum_x / length, sum_y / length, 0.0])
 
-        self.centroid[2] = self.depth_image[
-            int(self.centroid[1]), int(self.centroid[0])
-        ]
+        try:
+            self.centroid[2] = self.depth_image[
+                int(self.centroid[1]), int(self.centroid[0])
+            ]
+        except Exception:
+            self.centroid = np.array([0.0, 0.0, 0.0])
 
         self.waypoint.pose.position.x = self.centroid[0]
         self.waypoint.pose.position.y = self.centroid[1]
@@ -229,7 +235,9 @@ class HandCV(Node):
 
             detection_result = self.mps.landmarker.recognize(mp_image)
             annotated_image = self.mps.draw_landmarks_on_image(
-                rgb_image=self.color_image, detection_result=detection_result
+                rgb_image=self.color_image,
+                detection_result=detection_result,
+                logger=self.get_logger(),
             )
 
             return annotated_image, detection_result
@@ -244,6 +252,7 @@ class HandCV(Node):
             cv_image, right_gesture = self.process_depth_image(
                 annotated_image, detection_result
             )
+            cv.imshow("window", self.color_image)
             self.cv_image_pub.publish(cv_image)
             self.right_gesture_pub.publish(String(data=right_gesture))
 

@@ -1,0 +1,10 @@
+.git
+.gitmodules
+**/.git
+**/.gitmodules
+*.pyc
+__pycache__
+build/
+install/
+log/
+.vscode/

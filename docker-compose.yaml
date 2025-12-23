@@ -1,18 +1,11 @@
 include: [./external/franka_ros2/docker-compose.yml]
 services:
   franka_teleop:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    extends: realsense
     image: "franka_teleop:latest"
-    environment:
-      - DISPLAY=${DISPLAY}
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ./handcv/:/ros2_ws/src/handcv/
     network_mode: host
-    ipc: host  
-    init: true
     deploy:
       resources:
         reservations:
@@ -28,6 +21,15 @@ services:
       ros2 launch handcv camera.launch.py use_realsense:=true
       "
 
+  franka_teleop_rviz:
+    extends: franka_teleop
+    command:  >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      colcon build &&
+      source install/setup.bash &&
+      ros2 launch cv_franka_bridge integrate_servo.launch.py
+      "
 
   rviz:
     build:
@@ -52,10 +54,13 @@ services:
     command: ros2 run rviz2 rviz2
 
   franka_ros2:
-    # build:
-    #   args:
-    #     - USER_UID=1001
-    #     - USER_GID=1001
+    build:
+      # context: external/franka_ros2
+      # dockerfile: Dockerfile
+      args:
+        - USER_UID=1001
+        - USER_GID=1001
+    image: "franka_ros2:latest"
     init: true
     network_mode: host
     entrypoint: ""
