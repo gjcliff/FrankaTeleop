@@ -100,9 +100,10 @@ class HandCV(Node):
     def color_image_raw_callback(self, msg):
         """Capture color images and convert them to OpenCV images."""
         self.color_image = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="passthrough"
+            msg, desired_encoding="bgr8"
         )
-        self.color_image = cv.flip(self.color_image, 1)
+        # cv.imshow("window", self.color_image)
+        # cv.waitKey(1)
         self.image_width = msg.width
         self.image_height = msg.height
 
@@ -127,6 +128,7 @@ class HandCV(Node):
         right_index = None
         left_gesture = "None"
         left_index = None
+        self.get_logger().info("processing depth image")
         if detection_result.gestures and detection_result.handedness:
             if len(detection_result.handedness) == 2:
                 if detection_result.handedness[0][0].category_name == "Left":
@@ -165,8 +167,10 @@ class HandCV(Node):
                     left_gesture = "None"
                     right_index = 0
 
+        self.get_logger().info(f"left_gesture: {left_gesture}")
+        self.get_logger().info(f"right_gesture: {right_gesture}")
         if detection_result.hand_landmarks and right_index is not None:
-            # self.get_logger().info("Right Hand")
+            self.get_logger().info("Right Hand")
             coords = np.array(
                 [
                     [

@@ -94,12 +94,9 @@ class MediaPipeRos:
         options = GestureRecognizerOptions(
             base_options=BaseOptions(self.model_path),
             running_mode=VisionRunningMode.IMAGE,
-            num_hands=2,
+            num_hands=1,
         )
 
         recognizer = GestureRecognizer.create_from_options(options)
 
         return recognizer
-
-    def do_nothing(self):
-        pass
