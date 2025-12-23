@@ -11,9 +11,18 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
-      - /dev:/dev
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      - /dev/video2:/dev/video2
+      - /dev/video3:/dev/video3
+      - /dev/video4:/dev/video4
+      - /dev/video5:/dev/video5
       - ./handcv/:/ros2_ws/src/handcv/
+      - ./franka_teleop/:/ros2_ws/src/franka_teleop/
       - ./franka_teleop_bringup/:/ros2_ws/src/franka_teleop_bringup/
+    device_cgroup_rules:
+      - 'c 81:* rmw'
+      - 'c 189:* rmw'
     network_mode: host
     ipc: host  
     init: true
@@ -25,9 +34,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    device_cgroup_rules:
-      - 'c 81:* rmw'
-      - 'c 189:* rmw'
     command:  >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
@@ -63,6 +69,7 @@ services:
       args:
         - USER_UID=1001
         - USER_GID=1001
+        - USER_GID=1001
     image: "franka_ros2:latest"
     init: true
     network_mode: host
@@ -71,18 +78,19 @@ services:
       bash -c "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true"
 
   realsense:
+    extends:
+      service: base
+    image: "realsense:latest"
+    command: ros2 launch realsense2_camera rs_launch.py pointcloud.enable:=true
+  
+  base:
     build: 
+      args:
+        - USER_UID=44
+        - USERNAME=user
       context: .
       dockerfile: Dockerfile
-    image: "franka_teleop:latest"
-    environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
-      - /dev:/dev
-      # - /dev/shm:/dev/shm
+    image: "base:latest"
     device_cgroup_rules:
       - 'c 81:* rmw'
       - 'c 189:* rmw'
@@ -90,4 +98,11 @@ services:
     ipc: host  
     init: true
     tty: true
-    command: ros2 launch realsense2_camera rs_launch.py pointcloud.enable:=true
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - /dev:/dev

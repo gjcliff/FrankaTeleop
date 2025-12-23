@@ -16,9 +16,12 @@ def generate_launch_description():
                 "controllers_yaml",
                 default_value=PathJoinSubstitution(
                     [
-                        FindPackageShare("franka_teleop_bringup"),
+                        # FindPackageShare("franka_teleop_bringup"),
+                        # "config",
+                        # "panda_mock_controllers.yaml",
+                        FindPackageShare("franka_bringup"),
                         "config",
-                        "panda_mock_controllers.yaml",
+                        "controllers.yaml",
                     ]
                 ),
                 description="Override the default controllers.yaml file.",
@@ -49,11 +52,6 @@ def generate_launch_description():
                 description="whether or not to use realsense camera.",
             ),
             DeclareLaunchArgument(
-                name="run_franka_teleop",
-                default_value="true",
-                description="whether or not to run franka teleop.",
-            ),
-            DeclareLaunchArgument(
                 name="rviz_file",
                 default_value="integrate_servo.rviz",
                 description="rviz file to use.",
@@ -76,71 +74,43 @@ def generate_launch_description():
                 description="z limits for the bounding box of\
                                           the end effector. Format: min,max",
             ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    [
-                        PathJoinSubstitution(
-                            [
-                                FindPackageShare("franka_bringup"),
-                                "launch",
-                                "franka.launch.py",
-                            ]
-                        )
-                    ]
-                ),
-                launch_arguments={
-                    "controllers_yaml": LaunchConfiguration(
-                        "controllers_yaml"
-                    ),
-                    "use_fake_hardware": LaunchConfiguration(
-                        "use_fake_hardware"
-                    ),
-                    "robot_ip": LaunchConfiguration("robot_ip"),
-                }.items(),
-            ),
-            Node(
-                package="rviz2",
-                executable="rviz2",
-                name="rviz2",
-                arguments=[
-                    "--display-config",
-                    PathJoinSubstitution(
-                        [
-                            FindPackageShare("franka_description"),
-                            "rviz",
-                            "visualize_franka.rviz",
-                        ]
-                    ),
-                ],
-                output="screen",
-            ),
             # IncludeLaunchDescription(
             #     PythonLaunchDescriptionSource(
             #         [
             #             PathJoinSubstitution(
             #                 [
-            #                     FindPackageShare("franka_teleop"),
+            #                     FindPackageShare("franka_bringup"),
             #                     "launch",
-            #                     "franka_rviz.launch.py",
+            #                     "franka.launch.py",
             #                 ]
             #             )
             #         ]
             #     ),
-            #     condition=IfCondition(LaunchConfiguration("use_rviz")),
             #     launch_arguments={
-            #         "robot_ip": LaunchConfiguration("robot_ip"),
+            #         "controllers_yaml": LaunchConfiguration(
+            #             "controllers_yaml"
+            #         ),
             #         "use_fake_hardware": LaunchConfiguration(
             #             "use_fake_hardware"
             #         ),
-            #         "use_rviz": "true",
-            #         "rviz_file": PathJoinSubstitution(
+            #         "robot_ip": LaunchConfiguration("robot_ip"),
+            #     }.items(),
+            # ),
+            # Node(
+            #     package="rviz2",
+            #     executable="rviz2",
+            #     name="rviz2",
+            #     arguments=[
+            #         "--display-config",
+            #         PathJoinSubstitution(
             #             [
-            #                 FindPackageShare("cv_franka_bridge"),
-            #                 "config",
-            #                 LaunchConfiguration("rviz_file"),
+            #                 FindPackageShare("franka_description"),
+            #                 "rviz",
+            #                 "visualize_franka.rviz",
             #             ]
             #         ),
-            #     }.items(),
+            #     ],
+            #     output="screen",
             # ),
             # IncludeLaunchDescription(
             #     PythonLaunchDescriptionSource(
@@ -154,9 +124,6 @@ def generate_launch_description():
             #             )
             #         ]
             #     ),
-            #     condition=IfCondition(
-            #         LaunchConfiguration("run_franka_teleop")
-            #     ),
             #     launch_arguments={
             #         "robot_ip": LaunchConfiguration("robot_ip"),
             #         "use_fake_hardware": LaunchConfiguration(
@@ -165,28 +132,26 @@ def generate_launch_description():
             #         "use_rviz": "false",
             #     }.items(),
             # ),
-            # IncludeLaunchDescription(
-            #     PythonLaunchDescriptionSource(
-            #         [
-            #             PathJoinSubstitution(
-            #                 [
-            #                     FindPackageShare("handcv"),
-            #                     "launch",
-            #                     "camera.launch.py",
-            #                 ]
-            #             )
-            #         ]
-            #     ),
-            #     launch_arguments={
-            #         "use_realsense": LaunchConfiguration("use_realsense")
-            #     }.items(),
-            #     condition=IfCondition(LaunchConfiguration("use_realsense")),
-            # ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    [
+                        PathJoinSubstitution(
+                            [
+                                FindPackageShare("handcv"),
+                                "launch",
+                                "camera.launch.py",
+                            ]
+                        )
+                    ]
+                ),
+                launch_arguments={
+                    "use_realsense": LaunchConfiguration("use_realsense")
+                }.items(),
+            ),
             # Node(
             #     package="cv_franka_bridge",
             #     executable="cv_franka_bridge",
             #     output="screen",
-            #     condition=IfCondition(LaunchConfiguration("use_realsense")),
             #     parameters=[
             #         {"x_limits": LaunchConfiguration("x_limits")},
             #         {"y_limits": LaunchConfiguration("y_limits")},

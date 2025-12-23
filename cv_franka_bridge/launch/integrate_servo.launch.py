@@ -72,34 +72,34 @@ def generate_launch_description():
                 description="z limits for the bounding box of\
                                           the end effector. Format: min,max",
             ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    [
-                        PathJoinSubstitution(
-                            [
-                                FindPackageShare("franka_teleop"),
-                                "launch",
-                                "franka_rviz.launch.py",
-                            ]
-                        )
-                    ]
-                ),
-                condition=IfCondition(LaunchConfiguration("use_rviz")),
-                launch_arguments={
-                    "robot_ip": LaunchConfiguration("robot_ip"),
-                    "use_fake_hardware": LaunchConfiguration(
-                        "use_fake_hardware"
-                    ),
-                    "use_rviz": "true",
-                    "rviz_file": PathJoinSubstitution(
-                        [
-                            FindPackageShare("cv_franka_bridge"),
-                            "config",
-                            LaunchConfiguration("rviz_file"),
-                        ]
-                    ),
-                }.items(),
-            ),
+            # IncludeLaunchDescription(
+            #     PythonLaunchDescriptionSource(
+            #         [
+            #             PathJoinSubstitution(
+            #                 [
+            #                     FindPackageShare("franka_teleop"),
+            #                     "launch",
+            #                     "franka_rviz.launch.py",
+            #                 ]
+            #             )
+            #         ]
+            #     ),
+            #     condition=IfCondition(LaunchConfiguration("use_rviz")),
+            #     launch_arguments={
+            #         "robot_ip": LaunchConfiguration("robot_ip"),
+            #         "use_fake_hardware": LaunchConfiguration(
+            #             "use_fake_hardware"
+            #         ),
+            #         "use_rviz": "true",
+            #         "rviz_file": PathJoinSubstitution(
+            #             [
+            #                 FindPackageShare("cv_franka_bridge"),
+            #                 "config",
+            #                 LaunchConfiguration("rviz_file"),
+            #             ]
+            #         ),
+            #     }.items(),
+            # ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     [

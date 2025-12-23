@@ -11,8 +11,9 @@
         type: joint_state_broadcaster/JointStateBroadcaster
 
 
-  panda_arm_controller:
+  fr3_servo_controller:
     ros__parameters:
+      arm_id: "fr3"
       allow_nonzero_velocity_at_trajectory_end: true
       command_interfaces:
         - position

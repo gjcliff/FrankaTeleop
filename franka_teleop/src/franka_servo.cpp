@@ -18,8 +18,8 @@
 using namespace moveit_servo;
 
 namespace {
-constexpr auto K_BASE_FRAME = "panda_link0";
-constexpr auto K_TIP_FRAME = "panda_link8";
+constexpr auto K_BASE_FRAME = "fr3_link0";
+constexpr auto K_TIP_FRAME = "fr3_link7";
 } // namespace
 
 class FrankaServoNode {

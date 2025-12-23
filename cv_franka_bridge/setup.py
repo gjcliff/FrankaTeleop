@@ -16,7 +16,6 @@ setup(
             "share/" + package_name + "/launch",
             ["launch/integrate_servo.launch.py"],
         ),
-        ("share/" + package_name + "/launch", ["launch/new.launch.py"]),
         ("share/" + package_name + "/config", ["config/integrate.rviz"]),
         ("share/" + package_name + "/config", ["config/integrate_servo.rviz"]),
     ],

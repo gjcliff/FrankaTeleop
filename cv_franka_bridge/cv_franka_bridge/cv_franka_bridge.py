@@ -20,6 +20,7 @@ ACTION CLIENTS:
   + /panda_gripper/grasp (Grasp) - The action server that controls the gripper.
 
 """
+
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from franka_teleop.srv import PlanPath
 
@@ -43,36 +44,74 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 import numpy as np
 
+
 class CvFrankaBridge(Node):
 
     def __init__(self):
-        super().__init__('cv_franka_bridge')
+        super().__init__("cv_franka_bridge")
 
         # declare parameters
-        self.declare_parameter('x_limits', "0.2,0.6")
-        self.declare_parameter('y_limits', "-0.25,0.25")
-        self.declare_parameter('z_limits', "0.2,0.6")
+        self.declare_parameter("x_limits", "0.2,0.6")
+        self.declare_parameter("y_limits", "-0.25,0.25")
+        self.declare_parameter("z_limits", "0.2,0.6")
 
         # get parameters
-        self.x_limits = [float(value) for value in self.get_parameter('x_limits').get_parameter_value().string_value.split(",")]
-        self.y_limits = [float(value) for value in self.get_parameter('y_limits').get_parameter_value().string_value.split(",")]
-        self.z_limits = [float(value) for value in self.get_parameter('z_limits').get_parameter_value().string_value.split(",")]
+        self.x_limits = [
+            float(value)
+            for value in (
+                self.get_parameter("x_limits")
+                .get_parameter_value()
+                .string_value.split(",")
+            )
+        ]
+        self.y_limits = [
+            float(value)
+            for value in (
+                self.get_parameter("y_limits")
+                .get_parameter_value()
+                .string_value.split(",")
+            )
+        ]
+        self.z_limits = [
+            float(value)
+            for value in (
+                self.get_parameter("z_limits")
+                .get_parameter_value()
+                .string_value.split(",")
+            )
+        ]
 
         # create callback groups
         self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
         self.gesture_callback_group = MutuallyExclusiveCallbackGroup()
 
         # create subscribers
-        self.waypoint_subscriber = self.create_subscription(PoseStamped, 'waypoint', self.waypoint_callback, 10, callback_group=self.waypoint_callback_group)
+        self.waypoint_subscriber = self.create_subscription(
+            PoseStamped,
+            "waypoint",
+            self.waypoint_callback,
+            10,
+            callback_group=self.waypoint_callback_group,
+        )
         # self.left_gesture_subscriber = self.create_subscription(String, 'left_gesture', self.left_gesture_callback, 10, callback_group=self.gesture_callback_group)
-        self.right_gesture_subscriber = self.create_subscription(String, 'right_gesture', self.right_gesture_callback, 10, callback_group=self.gesture_callback_group)
+        self.right_gesture_subscriber = self.create_subscription(
+            String,
+            "right_gesture",
+            self.right_gesture_callback,
+            10,
+            callback_group=self.gesture_callback_group,
+        )
 
         # create publishers
-        self.text_marker_publisher = self.create_publisher(Marker, 'text_marker', 10)
-        self.bounding_box_publisher = self.create_publisher(Marker, 'bounding_box', 10)
+        self.text_marker_publisher = self.create_publisher(
+            Marker, "text_marker", 10
+        )
+        self.bounding_box_publisher = self.create_publisher(
+            Marker, "bounding_box", 10
+        )
 
         # create clients
-        self.waypoint_client = self.create_client(PlanPath, 'robot_waypoints')
+        self.waypoint_client = self.create_client(PlanPath, "robot_waypoints")
         self.waypoint_client.wait_for_service(timeout_sec=2.0)
 
         # create timer
@@ -80,14 +119,15 @@ class CvFrankaBridge(Node):
 
         # create action clients
         self.gripper_homing_client = ActionClient(
-                self, Homing, 'panda_gripper/homing')
+            self, Homing, "panda_gripper/homing"
+        )
         self.gripper_grasping_client = ActionClient(
-                self, Grasp, 'panda_gripper/grasp')
+            self, Grasp, "panda_gripper/grasp"
+        )
 
         self.gripper_grasping_client.wait_for_server(timeout_sec=1.0)
         # with a fake gripper, the homing server will not be created
-        if not self.gripper_homing_client.wait_for_server(
-                timeout_sec=1):
+        if not self.gripper_homing_client.wait_for_server(timeout_sec=1):
             self.gripper_ready = False
             self.gripper_homed = True
 
@@ -96,7 +136,9 @@ class CvFrankaBridge(Node):
         self.listener = TransformListener(self.buffer, self)
 
         # create class variables
-        self.text_marker = self.create_text_marker("Thumbs_up_to_begin_teleoperation")
+        self.text_marker = self.create_text_marker(
+            "Thumbs_up_to_begin_teleoperation"
+        )
         self.gripper_ready = True
         self.gripper_status = "Open"
         self.gripper_homed = False
@@ -107,8 +149,10 @@ class CvFrankaBridge(Node):
         self.current_waypoint = None
         self.previous_waypoint = None
         self.offset = None
-        self.initial_ee_pose = Pose(position=Point(x=0.30674, y=-0.0014384, z=0.48529),
-                                    orientation=Quaternion(x=1.0, y=0.0, z=0.0, w=0.0))
+        self.initial_ee_pose = Pose(
+            position=Point(x=0.30674, y=-0.0014384, z=0.48529),
+            orientation=Quaternion(x=1.0, y=0.0, z=0.0, w=0.0),
+        )
         self.desired_ee_pose = self.initial_ee_pose
         self.waypoints = []
         self.move_robot = False
@@ -138,7 +182,7 @@ class CvFrankaBridge(Node):
     def create_text_marker(self, text):
         """Create a text marker."""
         marker = Marker()
-        marker.header.frame_id = "panda_link0"
+        marker.header.frame_id = "fr3_link0"
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.type = marker.TEXT_VIEW_FACING
         marker.action = marker.ADD
@@ -156,28 +200,28 @@ class CvFrankaBridge(Node):
     def create_box_marker(self):
         """Create a line strip that represents the bounding box."""
         marker = Marker()
-        marker.header.frame_id = "panda_link0"
+        marker.header.frame_id = "fr3_link0"
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.type = marker.LINE_STRIP
         marker.action = marker.ADD
         marker.points = [
-                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
-                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
-                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
-                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0]),
-                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
-                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
-                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
-                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
-                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
-                Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
-                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
-                Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
-                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
-                Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
-                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
-                Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0])
-                ]
+            Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
+            Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
+            Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
+            Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0]),
+            Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[0]),
+            Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
+            Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
+            Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
+            Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
+            Point(x=self.x_limits[0], y=self.y_limits[0], z=self.z_limits[1]),
+            Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[1]),
+            Point(x=self.x_limits[1], y=self.y_limits[0], z=self.z_limits[0]),
+            Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[0]),
+            Point(x=self.x_limits[1], y=self.y_limits[1], z=self.z_limits[1]),
+            Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[1]),
+            Point(x=self.x_limits[0], y=self.y_limits[1], z=self.z_limits[0]),
+        ]
         marker.scale.x = 0.01
         marker.color.a = 1.0
         marker.color.r = 1.0
@@ -188,13 +232,17 @@ class CvFrankaBridge(Node):
     def gripper_homing_callback(self, request, response):
         """Callback for the gripper homing service."""
         goal = Homing.Goal()
-        self.gripper_homing_client.send_goal_async(goal, feedback_callback=self.feedback_callback)
+        self.gripper_homing_client.send_goal_async(
+            goal, feedback_callback=self.feedback_callback
+        )
         return response
 
     def get_transform(self, target_frame, source_frame):
         """Get the transform between two frames."""
         try:
-            trans = self.buffer.lookup_transform(target_frame, source_frame, rclpy.time.Time())
+            trans = self.buffer.lookup_transform(
+                target_frame, source_frame, rclpy.time.Time()
+            )
             translation = trans.transform.translation
             rotation = trans.transform.rotation
             return translation, rotation
@@ -214,7 +262,7 @@ class CvFrankaBridge(Node):
 
     def get_ee_pose(self):
         """Get the current pose of the end-effector."""
-        ee_home_pos, ee_home_rot = self.get_transform("panda_link0", "panda_hand_tcp")
+        ee_home_pos, ee_home_rot = self.get_transform("fr3_link0", "fr3_link7")
         ee_pose = Pose()
         ee_pose.position.x = ee_home_pos.x
         ee_pose.position.y = ee_home_pos.y
@@ -232,12 +280,25 @@ class CvFrankaBridge(Node):
             self.previous_waypoint = msg.pose
             return
 
-        distance = np.linalg.norm(np.array([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]) -
-                                  np.array([self.current_waypoint.position.x, self.current_waypoint.position.y, self.current_waypoint.position.z]))
+        distance = np.linalg.norm(
+            np.array(
+                [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
+            )
+            - np.array(
+                [
+                    self.current_waypoint.position.x,
+                    self.current_waypoint.position.y,
+                    self.current_waypoint.position.z,
+                ]
+            )
+        )
 
-        # filter out tiny movements to reduce jitter, and large errors from 
+        # filter out tiny movements to reduce jitter, and large errors from
         # camera
-        if distance < self.lower_distance_threshold and distance > self.upper_distance_threshold:
+        if (
+            distance < self.lower_distance_threshold
+            and distance > self.upper_distance_threshold
+        ):
             # experimental, might help with jerkiness when the use moves their hand too fast
             self.offset = self.current_waypoint
             return
@@ -249,7 +310,7 @@ class CvFrankaBridge(Node):
         Callback for the right gesture subscriber.
 
         The right gesture is used to control the robot's motion and the gripper.
-        
+
         Args:
         ----
         msg (String): The gesture that the right hand is making.
@@ -268,7 +329,11 @@ class CvFrankaBridge(Node):
             self.text_marker = self.create_text_marker(msg.data)
             self.move_robot = False
 
-        elif msg.data == "Closed_Fist" and self.gripper_ready and self.gripper_status == "Open":
+        elif (
+            msg.data == "Closed_Fist"
+            and self.gripper_ready
+            and self.gripper_status == "Open"
+        ):
             # if closed fist, close the gripper
             self.text_marker = self.create_text_marker(msg.data)
             self.gripper_ready = False
@@ -281,10 +346,16 @@ class CvFrankaBridge(Node):
             grasp_goal.epsilon.inner = 0.05
             grasp_goal.epsilon.outer = 0.05
             grasp_goal.force = self.gripper_force
-            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+            future = self.gripper_grasping_client.send_goal_async(
+                grasp_goal, feedback_callback=self.feedback_callback
+            )
             future.add_done_callback(self.grasp_response_callback)
 
-        elif msg.data == "Open_Palm" and self.gripper_ready and self.gripper_status == "Closed":
+        elif (
+            msg.data == "Open_Palm"
+            and self.gripper_ready
+            and self.gripper_status == "Closed"
+        ):
             # if open palm, open the gripper
             self.text_marker = self.create_text_marker(msg.data)
             self.gripper_force = 3.0
@@ -294,7 +365,9 @@ class CvFrankaBridge(Node):
             grasp_goal.epsilon.inner = 0.001
             grasp_goal.epsilon.outer = 0.001
             grasp_goal.force = self.gripper_force
-            future = self.gripper_grasping_client.send_goal_async(grasp_goal, feedback_callback=self.feedback_callback)
+            future = self.gripper_grasping_client.send_goal_async(
+                grasp_goal, feedback_callback=self.feedback_callback
+            )
             future.add_done_callback(self.grasp_response_callback)
             self.gripper_ready = False
             self.gripper_status = "Open"
@@ -308,21 +381,25 @@ class CvFrankaBridge(Node):
             self.offset = self.current_waypoint
             self.initial_ee_pose = self.get_ee_pose()
             self.desired_ee_pose = self.get_ee_pose()
-            phi = np.arctan2(self.desired_ee_pose.position.y, self.desired_ee_pose.position.x)
+            phi = np.arctan2(
+                self.desired_ee_pose.position.y,
+                self.desired_ee_pose.position.x,
+            )
             quat = quaternion_from_euler(-np.pi, 0.0, 0.0)
-            self.desired_ee_pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
+            self.desired_ee_pose.orientation = Quaternion(
+                x=quat[0], y=quat[1], z=quat[2], w=quat[3]
+            )
 
         self.prev_gesture = msg.data
-
 
     def grasp_response_callback(self, future):
         """Callback for the grasp response."""
 
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().info('Goal rejected :(')
+            self.get_logger().info("Goal rejected :(")
             return
-        self.get_logger().info('Goal accepted :)')
+        self.get_logger().info("Goal accepted :)")
 
         self._get_result_future = goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.get_result_callback)
@@ -331,7 +408,7 @@ class CvFrankaBridge(Node):
         """Callback for the grasp result."""
 
         result = future.result().result
-        self.get_logger().info(f'Result: {result}')
+        self.get_logger().info(f"Result: {result}")
         self.gripper_ready = True
 
     def feedback_callback(self, feedback):
@@ -342,7 +419,9 @@ class CvFrankaBridge(Node):
     async def home_gripper(self):
         """Home the gripper."""
 
-        await self.gripper_homing_client.send_goal_async(Homing.Goal(), feedback_callback=self.feedback_callback)
+        await self.gripper_homing_client.send_goal_async(
+            Homing.Goal(), feedback_callback=self.feedback_callback
+        )
         self.gripper_homed = True
 
     async def timer_callback(self):
@@ -354,29 +433,80 @@ class CvFrankaBridge(Node):
             # find the end-effector's position relative to the offset, which was
             # set the last time the user made a thumbs up gesture
             delta = Pose()
-            delta.position.x = (self.current_waypoint.position.x - self.offset.position.x) / 1000 # convert to meters
-            delta.position.y = (self.current_waypoint.position.y - self.offset.position.y) / 1000 # convert to meters
-            delta.position.z = (self.current_waypoint.position.z - self.offset.position.z) / 1000 # convert to meters
+            delta.position.x = (
+                self.current_waypoint.position.x - self.offset.position.x
+            ) / 1000  # convert to meters
+            delta.position.y = (
+                self.current_waypoint.position.y - self.offset.position.y
+            ) / 1000  # convert to meters
+            delta.position.z = (
+                self.current_waypoint.position.z - self.offset.position.z
+            ) / 1000  # convert to meters
 
             # Get the current and desired positions and orientations of the end-effector
-            self.desired_ee_pose.position.x = delta.position.z + self.initial_ee_pose.position.x
-            self.desired_ee_pose.position.y = delta.position.x + self.initial_ee_pose.position.y
-            self.desired_ee_pose.position.z = -delta.position.y + self.initial_ee_pose.position.z
+            self.desired_ee_pose.position.x = (
+                delta.position.z + self.initial_ee_pose.position.x
+            )
+            self.desired_ee_pose.position.y = (
+                delta.position.x + self.initial_ee_pose.position.y
+            )
+            self.desired_ee_pose.position.z = (
+                -delta.position.y + self.initial_ee_pose.position.z
+            )
 
-        if (self.desired_ee_pose.position.x < self.x_limits[0] or self.desired_ee_pose.position.x > self.x_limits[1]):
-            self.desired_ee_pose.position.x = self.x_limits[0] if self.desired_ee_pose.position.x < self.x_limits[0] else self.x_limits[1]
-        if (self.desired_ee_pose.position.y < self.y_limits[0] or self.desired_ee_pose.position.y > self.y_limits[1]):
-            self.desired_ee_pose.position.y = self.y_limits[0] if self.desired_ee_pose.position.y < self.y_limits[0] else self.y_limits[1]
-        if (self.desired_ee_pose.position.z < self.z_limits[0] or self.desired_ee_pose.position.z > self.z_limits[1]):
-            self.desired_ee_pose.position.z = self.z_limits[0] if self.desired_ee_pose.position.z < self.z_limits[0] else self.z_limits[1]
+        if (
+            self.desired_ee_pose.position.x < self.x_limits[0]
+            or self.desired_ee_pose.position.x > self.x_limits[1]
+        ):
+            self.desired_ee_pose.position.x = (
+                self.x_limits[0]
+                if self.desired_ee_pose.position.x < self.x_limits[0]
+                else self.x_limits[1]
+            )
+        if (
+            self.desired_ee_pose.position.y < self.y_limits[0]
+            or self.desired_ee_pose.position.y > self.y_limits[1]
+        ):
+            self.desired_ee_pose.position.y = (
+                self.y_limits[0]
+                if self.desired_ee_pose.position.y < self.y_limits[0]
+                else self.y_limits[1]
+            )
+        if (
+            self.desired_ee_pose.position.z < self.z_limits[0]
+            or self.desired_ee_pose.position.z > self.z_limits[1]
+        ):
+            self.desired_ee_pose.position.z = (
+                self.z_limits[0]
+                if self.desired_ee_pose.position.z < self.z_limits[0]
+                else self.z_limits[1]
+            )
 
         try:
             ee_pose = self.get_ee_pose()
         except AttributeError as e:
             return
 
-        current_euler = list(euler_from_quaternion([ee_pose.orientation.x, ee_pose.orientation.y, ee_pose.orientation.z, ee_pose.orientation.w]))
-        desired_euler = list(euler_from_quaternion([self.desired_ee_pose.orientation.x, self.desired_ee_pose.orientation.y, self.desired_ee_pose.orientation.z, self.desired_ee_pose.orientation.w]))
+        current_euler = list(
+            euler_from_quaternion(
+                [
+                    ee_pose.orientation.x,
+                    ee_pose.orientation.y,
+                    ee_pose.orientation.z,
+                    ee_pose.orientation.w,
+                ]
+            )
+        )
+        desired_euler = list(
+            euler_from_quaternion(
+                [
+                    self.desired_ee_pose.orientation.x,
+                    self.desired_ee_pose.orientation.y,
+                    self.desired_ee_pose.orientation.z,
+                    self.desired_ee_pose.orientation.w,
+                ]
+            )
+        )
 
         # Orientation PID loops
         if current_euler[0] < 0:
@@ -387,12 +517,16 @@ class CvFrankaBridge(Node):
         pitch_error = desired_euler[1] - current_euler[1]
         yaw_error = desired_euler[2] - current_euler[2]
 
-        roll_derivative = (roll_error - self.roll_error_prior)
-        pitch_derivative = (pitch_error - self.pitch_error_prior)
-        yaw_derivative = (yaw_error - self.yaw_error_prior)
+        roll_derivative = roll_error - self.roll_error_prior
+        pitch_derivative = pitch_error - self.pitch_error_prior
+        yaw_derivative = yaw_error - self.yaw_error_prior
 
-        roll_output = self.kp_angle * roll_error - self.kd_angle * roll_derivative
-        pitch_output = self.kp_angle * pitch_error + self.kd_angle * pitch_derivative
+        roll_output = (
+            self.kp_angle * roll_error - self.kd_angle * roll_derivative
+        )
+        pitch_output = (
+            self.kp_angle * pitch_error + self.kd_angle * pitch_derivative
+        )
         yaw_output = self.kp_angle * yaw_error + self.kd_angle * yaw_derivative
 
         euler_output = [roll_output, -pitch_output, -yaw_output]
@@ -402,10 +536,20 @@ class CvFrankaBridge(Node):
         self.yaw_error_prior = yaw_error
 
         # Position PID loop
-        position_error = np.linalg.norm(np.array([self.desired_ee_pose.position.x, self.desired_ee_pose.position.y, self.desired_ee_pose.position.z]) -
-                               np.array([ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]))
+        position_error = np.linalg.norm(
+            np.array(
+                [
+                    self.desired_ee_pose.position.x,
+                    self.desired_ee_pose.position.y,
+                    self.desired_ee_pose.position.z,
+                ]
+            )
+            - np.array(
+                [ee_pose.position.x, ee_pose.position.y, ee_pose.position.z]
+            )
+        )
 
-        derivative = (position_error - self.position_error_prior)
+        derivative = position_error - self.position_error_prior
         output = self.kp * position_error + self.kd * derivative
         self.position_error_prior = position_error
 
@@ -413,16 +557,23 @@ class CvFrankaBridge(Node):
             output = self.max_output
 
         robot_move = PoseStamped()
-        robot_move.header.frame_id = "panda_link0"
+        robot_move.header.frame_id = "fr3_link0"
         robot_move.header.stamp = self.get_clock().now().to_msg()
-        robot_move.pose.position.x = np.round(output * (self.desired_ee_pose.position.x - ee_pose.position.x),4)
-        robot_move.pose.position.y = np.round(-output * (self.desired_ee_pose.position.y - ee_pose.position.y),4)
-        robot_move.pose.position.z = np.round(-output * (self.desired_ee_pose.position.z - ee_pose.position.z),4)
+        robot_move.pose.position.x = np.round(
+            output * (self.desired_ee_pose.position.x - ee_pose.position.x), 4
+        )
+        robot_move.pose.position.y = np.round(
+            -output * (self.desired_ee_pose.position.y - ee_pose.position.y), 4
+        )
+        robot_move.pose.position.z = np.round(
+            -output * (self.desired_ee_pose.position.z - ee_pose.position.z), 4
+        )
 
         planpath_request = PlanPath.Request()
         planpath_request.waypoint = robot_move
         planpath_request.angles = euler_output
         future = self.waypoint_client.call_async(planpath_request)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -432,26 +583,5 @@ def main(args=None):
     rclpy.spin(cv_franka_bridge)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

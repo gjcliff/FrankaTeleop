@@ -1,2 +1,3 @@
 mediapipe==0.10.31
+pyyaml
 # opencv-python

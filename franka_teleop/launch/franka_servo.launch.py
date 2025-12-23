@@ -2,13 +2,14 @@ import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import (
-    ExecuteProcess,
+    OpaqueFunction,
     Shutdown,
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_param_builder import ParameterBuilder
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import (
@@ -21,28 +22,109 @@ from launch.substitutions import (
 from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
+import yaml
+
+
+def load_yaml(package_name, file_path):
+    package_path = get_package_share_directory(package_name)
+    absolute_file_path = os.path.join(package_path, file_path)
+
+    try:
+        with open(absolute_file_path, "r") as file:
+            return yaml.safe_load(file)
+    except (
+        EnvironmentError
+    ):  # parent of IOError, OSError *and* WindowsError where available
+        return None
+
 
 def generate_launch_description():
-    moveit_config_fake = (
-        MoveItConfigsBuilder("numsr_franka")
-        .robot_description(file_path="config/panda_arm_fake.urdf.xacro")
-        .robot_description_semantic(file_path="config/panda_arm.srdf")
-        .robot_description_kinematics(file_path="config/kinematics.yaml")
-        .trajectory_execution(file_path="config/panda_controllers.yaml")
-        .joint_limits(file_path="config/joint_limits.yaml")
-        .to_moveit_configs()
+    robot_ip_parameter_name = "robot_ip"
+    use_fake_hardware_parameter_name = "use_fake_hardware"
+    fake_sensor_commands_parameter_name = "fake_sensor_commands"
+    load_gripper_parameter_name = "load_gripper"
+    ee_id_parameter_name = "ee_id"
+    arm_id_parameter_name = "arm_id"
+
+    robot_ip = LaunchConfiguration(robot_ip_parameter_name)
+    use_fake_hardware = LaunchConfiguration(use_fake_hardware_parameter_name)
+    fake_sensor_commands = LaunchConfiguration(
+        fake_sensor_commands_parameter_name
     )
-    moveit_config_real = (
-        MoveItConfigsBuilder("numsr_franka")
-        .robot_description(file_path="config/panda_arm_real.urdf.xacro")
-        .robot_description_semantic(file_path="config/panda_arm.srdf")
-        .robot_description_kinematics(file_path="config/kinematics.yaml")
-        .trajectory_execution(file_path="config/panda_controllers.yaml")
-        .joint_limits(file_path="config/joint_limits.yaml")
-        .to_moveit_configs()
+    load_gripper = LaunchConfiguration(load_gripper_parameter_name)
+    ee_id = LaunchConfiguration(ee_id_parameter_name)
+
+    # planning_context
+    franka_xacro_file = os.path.join(
+        get_package_share_directory("franka_description"),
+        "robots",
+        "fr3",
+        "fr3.urdf.xacro",
     )
 
-    # Get parameters for the Servo node
+    robot_description_config = Command(
+        [
+            FindExecutable(name="xacro"),
+            " ",
+            franka_xacro_file,
+            " hand:=",
+            load_gripper,
+            " robot_ip:=",
+            robot_ip,
+            " ee_id:=",
+            ee_id,
+            " use_fake_hardware:=",
+            use_fake_hardware,
+            " fake_sensor_commands:=",
+            fake_sensor_commands,
+            " ros2_control:=true",
+        ]
+    )
+
+    robot_description = {
+        "robot_description": ParameterValue(
+            robot_description_config, value_type=str
+        )
+    }
+
+    franka_semantic_xacro_file = os.path.join(
+        get_package_share_directory("franka_description"),
+        "robots",
+        "fr3",
+        "fr3.srdf.xacro",
+    )
+
+    robot_description_semantic_config = Command(
+        [
+            FindExecutable(name="xacro"),
+            " ",
+            franka_semantic_xacro_file,
+            " hand:=",
+            load_gripper,
+            " ee_id:=",
+            ee_id,
+        ]
+    )
+
+    robot_description_semantic = {
+        "robot_description_semantic": ParameterValue(
+            robot_description_semantic_config, value_type=str
+        )
+    }
+
+    kinematics_yaml = load_yaml(
+        "franka_fr3_moveit_config", "config/kinematics.yaml"
+    )
+
+    kinematics_config = {"robot_description_kinematics": kinematics_yaml}
+
+    joint_limits_yaml = load_yaml(
+        "franka_fr3_moveit_config", "config/fr3_joint_limits.yaml"
+    )
+
+    joint_limits_config = {"robot_description_planning": joint_limits_yaml}
+
+    # get parameters for the servo node
     servo_params = {
         "moveit_servo": (
             ParameterBuilder("moveit_servo")
@@ -51,171 +133,77 @@ def generate_launch_description():
         )
     }
 
-    # This filter parameter should be >1. Increase it for greater smoothing but slower motion.
-    low_pass_filter_coeff = {"butterworth_filter_coeff": 3.0}
+    acceleration_filter_update_period = {"update_period": 0.01}
+    planning_group_name = {"planning_group_name": "fr3_arm"}
+    servo_params["moveit_servo"]["move_group_name"] = "fr3_arm"
+    servo_params["moveit_servo"][
+        "command_out_topic"
+    ] = "/fr3_arm_controller/joint_trajectory"
 
-    # Load controllers
-    load_controllers = []
-    for controller in [
-        "joint_state_broadcaster",
-        "panda_arm_controller",
-    ]:
-        load_controllers += [
-            ExecuteProcess(
-                cmd=[
-                    "ros2 run controller_manager spawner {}".format(controller)
-                ],
-                shell=True,
-                output="screen",
-            )
-        ]
+    # this filter parameter should be >1. increase it for greater smoothing but
+    # slower motion
+    # low_pass_filter_coeff = {"butterworth_filter_coeff": 3.0}
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument(
-                name="use_fake_hardware",
-                default_value="true",
-                description="whether or not to use fake hardware.",
-            ),
             DeclareLaunchArgument(
                 name="use_rviz",
                 default_value="true",
                 description="whether or not to use rviz.",
             ),
             DeclareLaunchArgument(
+                name="arm_id",
+                default_value="fr3",
+                description="ID of the type of arm used",
+            ),
+            DeclareLaunchArgument(
                 name="robot_ip",
                 default_value="dont-care",
                 description="IP address of the robot",
             ),
-            Node(
-                package="franka_teleop",
-                executable="franka_servo",
-                parameters=[
-                    servo_params,
-                    low_pass_filter_coeff,
-                    moveit_config_fake.robot_description,
-                    moveit_config_fake.robot_description_semantic,
-                    moveit_config_fake.robot_description_kinematics,
-                ],
-                condition=IfCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="screen",
+            DeclareLaunchArgument(
+                name="use_fake_hardware",
+                default_value="true",
+                description="whether or not to use fake hardware.",
+            ),
+            DeclareLaunchArgument(
+                name="ee_id",
+                default_value="franka_hand",
+                description="The end-effector id to use. Available options: "
+                "none, franka_hand, cobot_pump",
+            ),
+            DeclareLaunchArgument(
+                name="load_gripper",
+                default_value="true",
+                description="Whether to load the gripper or not (true or "
+                "false)",
+            ),
+            DeclareLaunchArgument(
+                name="load_gripper",
+                default_value="true",
+                description="Whether to load the gripper or not (true or "
+                "false)",
+            ),
+            DeclareLaunchArgument(
+                name="fake_sensor_commands",
+                default_value="false",
+                description="Fake sensor commands. Only valid when "
+                "'fake_sensor_commands' is true",
             ),
             Node(
                 package="franka_teleop",
                 executable="franka_servo",
                 parameters=[
                     servo_params,
-                    low_pass_filter_coeff,
-                    moveit_config_fake.robot_description,
-                    moveit_config_fake.robot_description_semantic,
-                    moveit_config_fake.robot_description_kinematics,
+                    acceleration_filter_update_period,
+                    planning_group_name,
+                    # low_pass_filter_coeff,
+                    robot_description,
+                    robot_description_semantic,
+                    kinematics_config,
+                    joint_limits_config,
                 ],
-                condition=UnlessCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="screen",
-            ),
-            ExecuteProcess(
-                cmd=[
-                    "ros2 run controller_manager spawner joint_state_broadcaster"
-                ],
-                shell=True,
-                output="screen",
-            ),
-            Node(
-                package="controller_manager",
-                executable="ros2_control_node",
-                remappings=[("joint_states", "franka/joint_states")],
-                parameters=[
-                    moveit_config_fake.robot_description,
-                    PathJoinSubstitution(
-                        [
-                            FindPackageShare("numsr_franka_moveit_config"),
-                            "config",
-                            "panda_mock_controllers.yaml",
-                        ]
-                    ),
-                ],
-                condition=IfCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="both",
-            ),
-            Node(
-                package="controller_manager",
-                executable="ros2_control_node",
-                remappings=[("joint_states", "franka/joint_states")],
-                parameters=[
-                    moveit_config_real.robot_description,
-                    PathJoinSubstitution(
-                        [
-                            FindPackageShare("numsr_franka_moveit_config"),
-                            "config",
-                            "panda_ros_controllers.yaml",
-                        ]
-                    ),
-                ],
-                condition=UnlessCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="both",
-            ),
-            Node(
-                package="joint_state_publisher",
-                executable="joint_state_publisher",
-                name="joint_state_publisher",
-                parameters=[
-                    {
-                        "source_list": [
-                            "franka/joint_states",
-                            "panda_gripper/joint_states",
-                        ],
-                        "rate": 30,
-                    }
-                ],
-            ),
-            Node(
-                package="tf2_ros",
-                executable="static_transform_publisher",
-                name="static_transform_publisher",
-                on_exit=Shutdown(),
-                output="log",
-                arguments=[
-                    "--frame-id",
-                    "world",
-                    "--child-frame-id",
-                    "panda_link0",
-                ],
-            ),
-            Node(
-                package="robot_state_publisher",
-                executable="robot_state_publisher",
-                name="robot_state_publisher",
-                condition=IfCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="both",
-                parameters=[moveit_config_fake.robot_description],
-            ),
-            Node(
-                package="robot_state_publisher",
-                executable="robot_state_publisher",
-                name="robot_state_publisher",
-                condition=UnlessCondition(
-                    LaunchConfiguration("use_fake_hardware")
-                ),
-                output="both",
-                parameters=[moveit_config_real.robot_description],
-            ),
-            ExecuteProcess(
-                cmd=[
-                    "ros2 run controller_manager spawner panda_arm_controller"
-                ],
-                shell=True,
                 output="screen",
             ),
         ]
-        # + load_controllers
     )
