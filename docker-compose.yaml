@@ -1,11 +1,23 @@
 include: [./external/franka_ros2/docker-compose.yml]
 services:
   franka_teleop:
-    extends: realsense
+    build: 
+      context: .
+      dockerfile: Dockerfile
     image: "franka_teleop:latest"
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
     volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - /dev:/dev
       - ./handcv/:/ros2_ws/src/handcv/
+      - ./franka_teleop_bringup/:/ros2_ws/src/franka_teleop_bringup/
     network_mode: host
+    ipc: host  
+    init: true
+    tty: true
     deploy:
       resources:
         reservations:
@@ -13,22 +25,15 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    device_cgroup_rules:
+      - 'c 81:* rmw'
+      - 'c 189:* rmw'
     command:  >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
       colcon build &&
       source install/setup.bash &&
-      ros2 launch handcv camera.launch.py use_realsense:=true
-      "
-
-  franka_teleop_rviz:
-    extends: franka_teleop
-    command:  >
-      bash -c "
-      source /opt/ros/jazzy/setup.bash &&
-      colcon build &&
-      source install/setup.bash &&
-      ros2 launch cv_franka_bridge integrate_servo.launch.py
+      ros2 launch franka_teleop_bringup bringup.launch.py
       "
 
   rviz:
@@ -55,8 +60,6 @@ services:
 
   franka_ros2:
     build:
-      # context: external/franka_ros2
-      # dockerfile: Dockerfile
       args:
         - USER_UID=1001
         - USER_GID=1001

@@ -2,6 +2,23 @@
 
 **THE JAZZY BRANCH IS IN PROGRESS, EST. COMPLETION DEC 20.**
 
+DONE:
+* [ ] you can run the franka sim in rviz with:
+    ```bash
+    docker compse up franka_teleop
+      ```
+
+    * still working on getting everything else flowing and ready to go still
+    * getting it to work in sim is one thing but hardware will be difficult,
+      since i dont have access to one of these anymore.
+
+TODO:
+- [ ] make it so you can launch everything with one docker compose command,
+  using docker compse services individually or using one launch file to get
+  everything
+  * this will make me need to figure out a way to pass everything into the
+    launch file
+
 the rest of this readme is for the original iron project.
 
 ##

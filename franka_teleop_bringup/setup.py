@@ -1,6 +1,7 @@
 from setuptools import find_packages, setup
+from glob import glob
 
-package_name = "cv_franka_bridge"
+package_name = "franka_teleop_bringup"
 
 setup(
     name=package_name,
@@ -14,22 +15,25 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (
             "share/" + package_name + "/launch",
-            ["launch/integrate_servo.launch.py"],
+            glob("launch/*.launch.py"),
         ),
-        ("share/" + package_name + "/launch", ["launch/new.launch.py"]),
-        ("share/" + package_name + "/config", ["config/integrate.rviz"]),
-        ("share/" + package_name + "/config", ["config/integrate_servo.rviz"]),
+        (
+            "share/" + package_name + "/config",
+            glob("config/*"),
+        ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
     maintainer="Graham Clifford",
-    maintainer_email="gclifford@u.northwestern.edu",
+    maintainer_email="gjcliff@gmail.com",
     description="TODO: Package description",
-    license="APLv2",
-    tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "cv_franka_bridge = cv_franka_bridge.cv_franka_bridge:main"
+    license="TODO: License declaration",
+    extras_require={
+        "test": [
+            "pytest",
         ],
+    },
+    entry_points={
+        "console_scripts": [],
     },
 )
