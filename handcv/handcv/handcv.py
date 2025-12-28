@@ -256,7 +256,8 @@ class HandCV(Node):
             cv_image, right_gesture = self.process_depth_image(
                 annotated_image, detection_result
             )
-            cv.imshow("window", self.color_image)
+            cv.imshow("window", annotated_image)
+            cv.waitKey(1)
             self.cv_image_pub.publish(cv_image)
             self.right_gesture_pub.publish(String(data=right_gesture))
 

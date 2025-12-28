@@ -74,8 +74,8 @@ class MediaPipeRos:
                 self.FONT_THICKNESS,
                 cv2.LINE_AA,
             )
-            cv2.imshow("window", annotated_image)
-            cv2.waitKey(1)
+            # cv2.imshow("window", annotated_image)
+            # cv2.waitKey(1)
 
         return annotated_image
 

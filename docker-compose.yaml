@@ -11,12 +11,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
-      - /dev/video0:/dev/video0
-      - /dev/video1:/dev/video1
-      - /dev/video2:/dev/video2
-      - /dev/video3:/dev/video3
-      - /dev/video4:/dev/video4
-      - /dev/video5:/dev/video5
+      - /dev/:/dev/
       - ./handcv/:/ros2_ws/src/handcv/
       - ./franka_teleop/:/ros2_ws/src/franka_teleop/
       - ./franka_teleop_bringup/:/ros2_ws/src/franka_teleop_bringup/
@@ -68,7 +63,6 @@ services:
     build:
       args:
         - USER_UID=1001
-        - USER_GID=1001
         - USER_GID=1001
     image: "franka_ros2:latest"
     init: true
