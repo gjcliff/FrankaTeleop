@@ -1,3 +1,4 @@
 mediapipe==0.10.31
 pyyaml
-# opencv-python
+opencv-python
+opencv-stubs

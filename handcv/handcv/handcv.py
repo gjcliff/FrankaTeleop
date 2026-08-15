@@ -14,25 +14,31 @@ SUBSCRIBERS:
 PUBLISHERS:
   + /cv_image (Image) - Annotated image with the 3D location of the hand's
   pose.
-  + /waypoint (PoseStamped) - The 3D location of the hand's pose.
+  + /waypoint (PointStamped) - The 3D location of the hand's pose.
   + /right_gesture (String) - The gesture that the right hand is making.
 
 """
 
-import rclpy
-from rclpy.node import Node
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from typing import Any, NamedTuple
 
+import cv2 as cv
+import mediapipe as mp
+import message_filters
+import numpy as np
+import rclpy
+from cv_bridge import CvBridge, CvBridgeError
+from geometry_msgs.msg import PointStamped
+from numpy.typing import NDArray
+from rclpy.node import Node
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 
-from cv_bridge import CvBridge, CvBridgeError
 from .mediapipehelper import MediaPipeRos as mps
 
-import mediapipe as mp
-import numpy as np
-import cv2 as cv
+
+class ProcessedColorImage(NamedTuple):
+    annoted_image: NDArray
+    gesture_result: Any
 
 
 class HandCV(Node):
@@ -45,69 +51,32 @@ class HandCV(Node):
         # initialize MediaPipe Object
         self.mps = mps()
 
-        # create callback groups
-        self.timer_callback_group = MutuallyExclusiveCallbackGroup()
-        self.waypoint_callback_group = MutuallyExclusiveCallbackGroup()
-
-        # create timer
-        self.timer = self.create_timer(
-            1 / 30,
-            self.timer_callback,
-            callback_group=self.timer_callback_group,
+        # create message_filter subscribers
+        color_sub = message_filters.Subscriber(
+            self, Image, "/camera/camera/color/image_raw"
+        )
+        depth_sub = message_filters.Subscriber(
+            self, Image, "/camera/camera/aligned_depth_to_color/image_raw"
         )
 
-        # create subscribers
-        self.color_image_raw_sub = self.create_subscription(
-            Image,
-            "/camera/camera/color/image_raw",
-            self.color_image_raw_callback,
-            10,
+        ts = message_filters.ApproximateTimeSynchronizer(
+            [color_sub, depth_sub], queue_size=10, slop=0.1  # 100ms tolerance
         )
-
-        self.depth_image_raw_sub = self.create_subscription(
-            Image,
-            "/camera/camera/aligned_depth_to_color/image_raw",
-            self.depth_image_raw_callback,
-            10,
-        )
+        ts.registerCallback(self.sync_callback)
 
         # create publishers
         self.cv_image_pub = self.create_publisher(Image, "cv_image", 10)
-
-        self.waypoint_pub = self.create_publisher(PoseStamped, "waypoint", 10)
-
+        self.waypoint_pub = self.create_publisher(PointStamped, "waypoint", 10)
         self.right_gesture_pub = self.create_publisher(
             String, "right_gesture", 10
         )
 
-        # intialize other variables
-        self.color_image = None
-        self.depth_image = None
-        self.waypoint = PoseStamped()
-        self.waypoint.pose.orientation.x = 1.0
-        self.waypoint.pose.orientation.w = 0.0
-        self.image_width = 0
-        self.image_height = 0
-        self.centroid = np.array([0.0, 0.0, 0.0])
-
-    def depth_image_raw_callback(self, msg):
-        """Capture depth images and convert them to OpenCV images."""
-        self.depth_image: cv.Mat = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="passthrough"
-        )
-        self.depth_image = cv.flip(self.depth_image, 1)
-
-    def color_image_raw_callback(self, msg):
-        """Capture color images and convert them to OpenCV images."""
-        self.color_image = self.bridge.imgmsg_to_cv2(
-            msg, desired_encoding="bgr8"
-        )
-        # cv.imshow("window", self.color_image)
-        # cv.waitKey(1)
-        self.image_width = msg.width
-        self.image_height = msg.height
-
-    def process_depth_image(self, annotated_image=None, detection_result=None):
+    def process_depth_image(
+        self,
+        depth_image: NDArray,
+        annotated_image: NDArray,
+        gesture_result: cv.Mat,
+    ) -> tuple[Image, PointStamped, str]:
         """
         Process the depth image to find the 3D location of the hand's pose.
 
@@ -115,7 +84,7 @@ class HandCV(Node):
         ----
         annotated_image (np.array): The annotated image with the 3D location of
         the hand's pose.
-        detection_result (mediapipe): The result of the hand landmark detection.
+        gesture (str): The result of the hand landmark detection.
 
         Returns:
         -------
@@ -126,65 +95,31 @@ class HandCV(Node):
         """
         right_gesture = "None"
         right_index = None
-        left_gesture = "None"
-        left_index = None
-        self.get_logger().info("processing depth image")
-        if detection_result.gestures and detection_result.handedness:
-            if len(detection_result.handedness) == 2:
-                if detection_result.handedness[0][0].category_name == "Left":
-                    left_gesture = detection_result.gestures[0][
-                        0
-                    ].category_name
-                    right_gesture = detection_result.gestures[1][
-                        0
-                    ].category_name
-                    left_index = 0
-                    right_index = 1
-                elif (
-                    detection_result.handedness[0][0].category_name == "Right"
-                ):
-                    right_gesture = detection_result.gestures[0][
-                        0
-                    ].category_name
-                    left_gesture = detection_result.gestures[1][
-                        0
-                    ].category_name
-                    left_index = 1
-                    right_index = 0
-            elif len(detection_result.handedness) == 1:
-                if detection_result.handedness[0][0].category_name == "Left":
-                    left_gesture = detection_result.gestures[0][
-                        0
-                    ].category_name
-                    right_gesture = "None"
-                    left_index = 0
-                elif (
-                    detection_result.handedness[0][0].category_name == "Right"
-                ):
-                    right_gesture = detection_result.gestures[0][
-                        0
-                    ].category_name
-                    left_gesture = "None"
+        if gesture_result.gestures and gesture_result.handedness:
+            for hand in gesture_result.handedness:
+                if hand.category_name == "Right":
+                    right_gesture = gesture_result.gestures[0][0].category_name
                     right_index = 0
 
-        self.get_logger().info(f"left_gesture: {left_gesture}")
         self.get_logger().info(f"right_gesture: {right_gesture}")
-        if detection_result.hand_landmarks and right_index is not None:
+        img_w = annotated_image.shape[1]
+        img_h = annotated_image.shape[0]
+        if gesture_result.hand_landmarks and right_index is not None:
             self.get_logger().info("Right Hand")
             coords = np.array(
                 [
                     [
-                        landmark.x * np.shape(annotated_image)[1],
-                        landmark.y * np.shape(annotated_image)[0],
+                        landmark.x * img_w,
+                        landmark.y * img_h,
                     ]
                     for landmark in [
-                        detection_result.hand_landmarks[right_index][0],
-                        detection_result.hand_landmarks[right_index][1],
-                        detection_result.hand_landmarks[right_index][2],
-                        detection_result.hand_landmarks[right_index][5],
-                        detection_result.hand_landmarks[right_index][9],
-                        detection_result.hand_landmarks[right_index][14],
-                        detection_result.hand_landmarks[right_index][17],
+                        gesture_result.hand_landmarks[right_index][0],
+                        gesture_result.hand_landmarks[right_index][1],
+                        gesture_result.hand_landmarks[right_index][2],
+                        gesture_result.hand_landmarks[right_index][5],
+                        gesture_result.hand_landmarks[right_index][9],
+                        gesture_result.hand_landmarks[right_index][14],
+                        gesture_result.hand_landmarks[right_index][17],
                     ]
                 ]
             )
@@ -192,25 +127,24 @@ class HandCV(Node):
             length = coords.shape[0]
             sum_x = np.sum(coords[:, 0])
             sum_y = np.sum(coords[:, 1])
-            self.centroid = np.array([sum_x / length, sum_y / length, 0.0])
+            centroid = np.array([sum_x / length, sum_y / length, 0.0])
 
         try:
-            self.centroid[2] = self.depth_image[
-                int(self.centroid[1]), int(self.centroid[0])
-            ]
+            centroid[2] = depth_image[int(centroid[1]), int(centroid[0])]
         except Exception:
-            self.centroid = np.array([0.0, 0.0, 0.0])
+            centroid = np.array([0.0, 0.0, 0.0])
 
-        self.waypoint.pose.position.x = self.centroid[0]
-        self.waypoint.pose.position.y = self.centroid[1]
-        self.waypoint.pose.position.z = self.centroid[2]
+        waypoint = PointStamped()
+        waypoint.point.x = centroid[0]
+        waypoint.point.y = centroid[1]
+        waypoint.point.z = centroid[2]
 
-        text = f"(x: {np.round(self.centroid[0] - self.image_width/2)}, y: {np.round(self.centroid[1] - self.image_height/2)}, z: {np.round(self.centroid[2])})"
+        text = f"(x: {np.round(centroid[0] - img_w/2)}, y: {np.round(centroid[1] - img_h/2)}, z: {np.round(centroid[2])})"
 
         annotated_image = cv.putText(
             annotated_image,
             text,
-            (int(self.centroid[0]) - 100, int(self.centroid[1]) + 40),
+            (int(centroid[0]) - 100, int(centroid[1]) + 40),
             cv.FONT_HERSHEY_COMPLEX,
             0.5,
             (255, 255, 255),
@@ -219,51 +153,72 @@ class HandCV(Node):
 
         annotated_image = cv.circle(
             annotated_image,
-            (int(self.centroid[0]), int(self.centroid[1])),
+            (int(centroid[0]), int(centroid[1])),
             10,
             (255, 255, 255),
             -1,
         )
 
-        cv_image = self.bridge.cv2_to_imgmsg(annotated_image, encoding="rgb8")
+        cv_image = self.bridge.cv2_to_imgmsg(annotated_image, encoding="bgr8")
 
-        return cv_image, right_gesture
+        return cv_image, waypoint, right_gesture
 
-    def process_color_image(self):
+    def process_color_image(self, color_img) -> ProcessedColorImage:
         """Process the color image to find the 3D location of the hand's pose."""
         try:
 
             mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB, data=self.color_image
+                image_format=mp.ImageFormat.SRGB, data=color_img
             )
 
-            detection_result = self.mps.landmarker.recognize(mp_image)
+            gesture_result = self.mps.gesture_recognizer.recognize(mp_image)
+
             annotated_image = self.mps.draw_landmarks_on_image(
                 rgb_image=self.color_image,
-                detection_result=detection_result,
+                detection_result=gesture_result,
                 logger=self.get_logger(),
             )
 
-            return annotated_image, detection_result
+            return ProcessedColorImage(annotated_image, gesture_result)
 
         except CvBridgeError:
             self.get_logger().error(CvBridgeError)
-
-    def timer_callback(self):
-        """Publish the annotated image and the waypoint for the arm"""
-        if self.color_image is not None and self.depth_image is not None:
-            annotated_image, detection_result = self.process_color_image()
-            cv_image, right_gesture = self.process_depth_image(
-                annotated_image, detection_result
+            return ProcessedColorImage(
+                np.zeros((640, 480)), cv.Mat(shape=(640, 480))
             )
-            cv.imshow("window", annotated_image)
-            cv.waitKey(1)
-            self.cv_image_pub.publish(cv_image)
-            self.right_gesture_pub.publish(String(data=right_gesture))
 
-        # publish the waypoint
-        self.waypoint.header.stamp = self.get_clock().now().to_msg()
-        self.waypoint_pub.publish(self.waypoint)
+    def process_image_msgs(self, color_msg, depth_msg):
+        # process the color image
+        self.color_image = self.bridge.imgmsg_to_cv2(
+            color_msg, desired_encoding="bgr8"
+        )
+        self.image_width, self.image_height = self.color_image.shape[:2]
+
+        # process the depth image
+        self.depth_image = self.bridge.imgmsg_to_cv2(
+            depth_msg, desired_encoding="passthrough"
+        )
+        # self.depth_image = cv.flip(self.depth_image, 1)
+
+        return self.color_image, self.depth_image
+
+    def sync_callback(self, color_msg, depth_msg):
+        color_img, depth_img = self.process_image_msgs(
+            color_msg=color_msg, depth_msg=depth_msg
+        )
+        processed_color_img = self.process_color_image(color_img=color_img)
+        cv_image, waypoint, right_gesture = self.process_depth_image(
+            depth_image=depth_img,
+            annotated_image=processed_color_img.annoted_image,
+            gesture_result=processed_color_img.gesture,
+        )
+        stamp = self.get_clock().now().to_msg()
+        cv_image.header.stamp = stamp
+        waypoint.header.stamp = stamp
+
+        self.cv_image_pub.publish(cv_image)
+        self.right_gesture_pub.publish(String(data=right_gesture))
+        self.waypoint_pub.publish(waypoint)
 
 
 def main(args=None):

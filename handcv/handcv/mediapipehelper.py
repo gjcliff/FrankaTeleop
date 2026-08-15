@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
 from handcv.drawing_tools import (
     HAND_CONNECTIONS,
@@ -17,6 +18,7 @@ import os
 
 from ament_index_python import get_package_share_directory
 
+from typing import Any
 
 class MediaPipeRos:
 
@@ -25,7 +27,7 @@ class MediaPipeRos:
         self.FONT_SIZE = 1
         self.FONT_THICKNESS = 1
         self.HANDEDNESS_TEXT_COLOR = (88, 205, 54)  # vibrant green
-        self.landmarker = self.initialize_mediapipe()
+        self.gesture_recognizer = self.initialize_mediapipe()
 
     def draw_landmarks_on_image(self, rgb_image, detection_result, logger):
         hand_landmarks_list = detection_result.hand_landmarks
@@ -79,24 +81,19 @@ class MediaPipeRos:
 
         return annotated_image
 
-    def initialize_mediapipe(self):
+    def initialize_mediapipe(self) -> Any:
         # initialize the mediapipe task file's path
         self.model_path = os.path.join(
             get_package_share_directory("handcv"),
             "config/gesture_recognizer.task",
         )
 
-        BaseOptions = mp.tasks.BaseOptions
-        GestureRecognizer = mp.tasks.vision.GestureRecognizer
-        GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
-        VisionRunningMode = mp.tasks.vision.RunningMode
-
-        options = GestureRecognizerOptions(
-            base_options=BaseOptions(self.model_path),
-            running_mode=VisionRunningMode.IMAGE,
-            num_hands=1,
+        base_options = python.BaseOptions(
+            model_asset_path="gesture_recognizer.task"
         )
-
-        recognizer = GestureRecognizer.create_from_options(options)
+        options = vision.GestureRecognizerOptions(
+            base_options=base_options, num_hands=2
+        )
+        recognizer = vision.GestureRecognizer.create_from_options(options)
 
         return recognizer

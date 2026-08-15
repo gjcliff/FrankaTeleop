@@ -10,6 +10,7 @@ SHELL ["/bin/bash", "-c"]
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+
 RUN sudo apt-get update \
     && sudo apt-get install -y \
     build-essential \
@@ -30,6 +31,7 @@ RUN sudo apt-get update \
     ros-${ROS_DISTRO}-rviz2 \
     ros-${ROS_DISTRO}-moveit \
     ros-${ROS_DISTRO}-moveit-servo \
+    ros-${ROS_DISTRO}-message-filters \
     ros-${ROS_DISTRO}-rqt-graph \
     ros-${ROS_DISTRO}-tf-transformations \
     && sudo rm -rf /var/lib/apt/lists/*
