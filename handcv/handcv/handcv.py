@@ -19,7 +19,7 @@ PUBLISHERS:
 
 """
 
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 import cv2
 import mediapipe as mp
@@ -37,7 +37,7 @@ from .mediapipehelper import MediaPipeRos as mps
 
 class ProcessedColorImage(NamedTuple):
     annoted_image: np.ndarray
-    gesture_result: Any
+    gesture_result: GestureRecognizerResult
 
 
 class HandCV(Node):
@@ -76,7 +76,7 @@ class HandCV(Node):
         depth_image: np.ndarray,
         annotated_image: np.ndarray,
         gesture_result: GestureRecognizerResult,
-    ) -> tuple[Image, PointStamped, str]:
+    ) -> tuple[Image, PointStamped, str | None]:
         """
         Process the depth image to find the 3D location of the hand's pose.
 
@@ -93,7 +93,7 @@ class HandCV(Node):
         right_gesture (String): The gesture that the right hand is making.
 
         """
-        right_gesture = "None"
+        right_gesture = None
         right_index = None
         self.get_logger().info(f"gesture_result: {gesture_result}")
         if gesture_result.gestures and gesture_result.handedness:
@@ -130,10 +130,7 @@ class HandCV(Node):
             sum_y = np.sum(coords[:, 1])
             centroid = np.array([sum_x / length, sum_y / length, 0.0])
 
-        try:
-            centroid[2] = depth_image[int(centroid[1]), int(centroid[0])]
-        except Exception:
-            centroid = np.array([0.0, 0.0, 0.0])
+        centroid[2] = depth_image[int(centroid[1]), int(centroid[0])]
 
         waypoint = PointStamped()
         waypoint.point.x = centroid[0]

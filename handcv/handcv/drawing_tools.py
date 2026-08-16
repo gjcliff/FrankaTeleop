@@ -1,3 +1,8 @@
+"""
+A drawing class for mediapipe, that I lifted from the older version of mediapipe 
+that used to have it. Hand modified by myself, sometimes with assistance from AI
+"""
+
 import dataclasses
 import enum
 import math
@@ -63,17 +68,15 @@ HAND_RING_FINGER_CONNECTIONS = ((13, 14), (14, 15), (15, 16))
 
 HAND_PINKY_FINGER_CONNECTIONS = ((17, 18), (18, 19), (19, 20))
 
-HAND_CONNECTIONS = frozenset().union(
-    *[
-        HAND_PALM_CONNECTIONS,
-        HAND_THUMB_CONNECTIONS,
-        HAND_INDEX_FINGER_CONNECTIONS,
-        HAND_MIDDLE_FINGER_CONNECTIONS,
-        HAND_RING_FINGER_CONNECTIONS,
-        HAND_PINKY_FINGER_CONNECTIONS,
-    ]
-)
 
+HAND_CONNECTIONS: list[tuple[tuple[int, int], ...]] = [
+    HAND_PALM_CONNECTIONS,
+    HAND_THUMB_CONNECTIONS,
+    HAND_INDEX_FINGER_CONNECTIONS,
+    HAND_MIDDLE_FINGER_CONNECTIONS,
+    HAND_RING_FINGER_CONNECTIONS,
+    HAND_PINKY_FINGER_CONNECTIONS,
+]
 
 WHITE_COLOR = (224, 224, 224)
 BLACK_COLOR = (0, 0, 0)
@@ -241,7 +244,7 @@ def draw_landmarks(
     logger,
     image: np.ndarray,
     landmark_list: NormalizedLandmarkList,
-    connections: list[tuple[int, int]] | None = None,
+    connections: list[tuple[tuple[int, int], ...]],
     landmark_drawing_spec: DrawingSpec | dict[int, DrawingSpec] = DrawingSpec(
         color=RED_COLOR
     ),

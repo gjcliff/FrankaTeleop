@@ -44,12 +44,12 @@ class MediaPipeRos:
                 ]
             )
             draw_landmarks(
-                logger,
-                annotated_image,
-                hand_landmarks_new_list,
-                HAND_CONNECTIONS,
-                get_default_hand_landmarks_style(),
-                get_default_hand_connections_style(),
+                logger=logger,
+                image=annotated_image,
+                landmark_list=hand_landmarks_new_list,
+                connections=HAND_CONNECTIONS,
+                landmark_drawing_spec=get_default_hand_landmarks_style(),
+                connection_drawing_spec=get_default_hand_connections_style(),
             )
 
             # Get the top left corner of the detected hand's bounding box.
