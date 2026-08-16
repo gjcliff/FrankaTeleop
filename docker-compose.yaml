@@ -10,7 +10,7 @@ services:
       - ./franka_teleop/:/ros2_ws/src/franka_teleop/
       - ./franka_teleop_bringup/:/ros2_ws/src/franka_teleop_bringup/
       - ./cv_franka_bridge/:/ros2_ws/src/cv_franka_bridge/
-    command:  >
+    command: >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
       colcon build &&
@@ -28,8 +28,46 @@ services:
     network_mode: host
     entrypoint: ""
     command: >
-      bash -c "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true"
+      ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true
 
+  calibration:
+    build: 
+      context: .
+      dockerfile: camera_calib.Dockerfile
+      args:
+        - USER_UID=1001
+        - USER_GID=1001
+        - USERNAME=${USERNAME}
+    image: "calibration:latest"
+    network_mode: host
+    privileged: true
+    tty: true
+    stdin_open: true
+    environment:
+      QT_X11_NO_MITSHM: 1
+      DISPLAY: ${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev/shm:/dev/shm
+      - /dev:/dev
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      ros2 run camera_calibration cameracalibrator
+      --no-service-check
+      --pattern charuco
+      --size 5x7
+      --square 0.0320
+      --charuco_marker_size 0.0246
+      --aruco_dict 6x6_250
+      --ros-args
+      --remap image:=/camera/infra1/image_rect_raw
+      --remap camera:=/camera/infra1
   rviz:
     extends:
       service: base
@@ -40,11 +78,20 @@ services:
     extends:
       service: base
     image: "realsense:latest"
+    volumes:
+      - ./advanced.json:/config/advanced.json:ro
     device_cgroup_rules:
       - 'c 81:* rmw'
       - 'c 189:* rmw'
-    command: ros2 launch realsense2_camera rs_launch.py pointcloud.enable:=true
-  
+    command: > 
+      ros2 launch realsense2_camera rs_launch.py 
+      camera_name:=camera
+      camera_namespace:=/
+      enable_color:=false
+      enable_depth:=false
+      enable_infra1:=true
+      json_file_path:=/config/advanced.json
+
   base:
     build: 
       context: .
