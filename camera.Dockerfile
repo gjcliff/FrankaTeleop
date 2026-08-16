@@ -10,7 +10,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     python3-colcon-common-extensions \
-    ros-jazzy-camera-calibration \
+    ros-${ROS_DISTRO}-camera-calibration \
+    ros-${ROS_DISTRO}-librealsense2* \
+    ros-${ROS_DISTRO}-realsense2-* \
     && rm -rf /var/lib/apt/lists/*
 
 # create non-root user without sudo
@@ -20,9 +22,6 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> /home/$USERNAME/.bashrc
 
 USER $USERNAME
-
-COPY --chown=$USERNAME:$USERNAME ./teleop_entrypoint.sh /teleop_entrypoint.sh
-RUN chmod +x /teleop_entrypoint.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 # CMD [ "/bin/bash" ]

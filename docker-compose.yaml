@@ -1,5 +1,18 @@
 include: [./external/franka_ros2/docker-compose.yml]
 services:
+
+  franka_ros2:
+    build:
+      args:
+        - USER_UID=1001
+        - USER_GID=1001
+    image: "franka_ros2:latest"
+    init: true
+    network_mode: host
+    entrypoint: ""
+    command: >
+      ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true
+
   franka_teleop:
     extends:
       service: base
@@ -18,28 +31,23 @@ services:
       ros2 launch franka_teleop_bringup bringup.launch.py
       "
 
-  franka_ros2:
-    build:
-      args:
-        - USER_UID=1001
-        - USER_GID=1001
-    image: "franka_ros2:latest"
-    init: true
-    network_mode: host
-    entrypoint: ""
-    command: >
-      ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true
+  rviz:
+    extends:
+      service: base
+    image: "rviz:latest"
+    command: ros2 run rviz2 rviz2
 
-  calibration:
+  realsense:
     build: 
       context: .
-      dockerfile: camera_calib.Dockerfile
+      dockerfile: camera.Dockerfile
       args:
         - USER_UID=1001
         - USER_GID=1001
         - USERNAME=${USERNAME}
-    image: "calibration:latest"
+    image: "realsense:latest"
     network_mode: host
+    # ipc: host
     privileged: true
     tty: true
     stdin_open: true
@@ -48,37 +56,7 @@ services:
       DISPLAY: ${DISPLAY}
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-      - /dev/shm:/dev/shm
       - /dev:/dev
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    command: >
-      ros2 run camera_calibration cameracalibrator
-      --no-service-check
-      --pattern charuco
-      --size 5x7
-      --square 0.0320
-      --charuco_marker_size 0.0246
-      --aruco_dict 6x6_250
-      --ros-args
-      --remap image:=/camera/infra1/image_rect_raw
-      --remap camera:=/camera/infra1
-  rviz:
-    extends:
-      service: base
-    image: "rviz:latest"
-    command: ros2 run rviz2 rviz2
-
-  realsense:
-    extends:
-      service: base
-    image: "realsense:latest"
-    volumes:
       - ./advanced.json:/config/advanced.json:ro
     device_cgroup_rules:
       - 'c 81:* rmw'
@@ -92,10 +70,26 @@ services:
       enable_infra1:=true
       json_file_path:=/config/advanced.json
 
+  calibration:
+    extends:
+      service: realsense
+    image: "calibration:latest"
+    command: >
+      ros2 run camera_calibration cameracalibrator
+      --no-service-check
+      --pattern charuco
+      --size 5x7
+      --square 0.0320
+      --charuco_marker_size 0.0246
+      --aruco_dict 6x6_250
+      --ros-args
+      --remap image:=/camera/infra1/image_rect_raw
+      --remap camera:=/camera/infra1
+
   base:
     build: 
       context: .
-      dockerfile: Dockerfile
+      dockerfile: teleop.Dockerfile
       args:
         - USER_UID=1001
         - USER_GID=1001
