@@ -7,4 +7,6 @@ if [ -f /ros2_ws/install/setup.bash ]; then
     source /ros2_ws/install/setup.bash
 fi
 
+echo hi
+
 exec "$@"

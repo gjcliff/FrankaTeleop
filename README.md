@@ -1,29 +1,25 @@
 # Franka Teleoperation
 
-**THE JAZZY BRANCH IS IN PROGRESS, EST. COMPLETION DEC 20.**
+**THE JAZZY BRANCH IS IN PROGRESS, EST. COMPLETION SEPT 16**
+
+I don't have access to one of these robots anymore. If you want to try this out
+and something doesn't work right, please add an issue or a pull request to this
+repo's github. Thank you!
 
 DONE:
 * [ ] you can run the franka sim in rviz with:
     ```bash
-    docker compse up franka_teleop
+    docker compose up franka_teleop
       ```
-
-    * still working on getting everything else flowing and ready to go still
-    * getting it to work in sim is one thing but hardware will be difficult,
-      since i dont have access to one of these anymore.
 
 TODO:
 - [ ] make it so you can launch everything with one docker compose command,
   using docker compse services individually or using one launch file to get
   everything
-  * this will make me need to figure out a way to pass everything into the
-    launch file
-
-the rest of this readme is for the original iron project.
 
 ##
 
-This is a ROS2 Iron package implementing teleoperation on the Emika Franka Panda
+This is a ROS2 Jazzy package implementing teleoperation on the Emika Franka Panda
 7 DOF robot. The package uses Google's MediaPipe hand tracking and gesture
 recognition in combination with MoveIt Servo to control the robot's movement.
 
@@ -72,7 +68,15 @@ provides, and processes it into commands for the franka_teleop node.
 files for the Franka robot.
 - hand_interfaces: A package containing custom ROS2 messages and services.
 
+# Docker
+The easiest way to use this package is through docker. It should be able to talk
+to your robot just fine (network_mode: host). I have yet to test this, so let me
+know.
+
+Install docker on your robot.
+
 ## Install Prequisites
+
 * Media Pipe:
 ```sh
 pip install mediapipe

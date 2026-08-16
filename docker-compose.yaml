@@ -1,34 +1,15 @@
 include: [./external/franka_ros2/docker-compose.yml]
 services:
   franka_teleop:
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    extends:
+      service: base
     image: "franka_teleop:latest"
-    environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
-      - /dev/:/dev/
       - ./handcv/:/ros2_ws/src/handcv/
+      - ./hand_interfaces/:/ros2_ws/src/hand_interfaces/
       - ./franka_teleop/:/ros2_ws/src/franka_teleop/
       - ./franka_teleop_bringup/:/ros2_ws/src/franka_teleop_bringup/
-    device_cgroup_rules:
-      - 'c 81:* rmw'
-      - 'c 189:* rmw'
-    network_mode: host
-    ipc: host  
-    init: true
-    tty: true
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - ./cv_franka_bridge/:/ros2_ws/src/cv_franka_bridge/
     command:  >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
@@ -36,28 +17,6 @@ services:
       source install/setup.bash &&
       ros2 launch franka_teleop_bringup bringup.launch.py
       "
-
-  rviz:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: "franka_teleop:latest"
-    environment:
-      - DISPLAY=${DISPLAY}
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      # - /dev/shm:/dev/shm
-    network_mode: host
-    ipc: host  
-    init: true
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    command: ros2 run rviz2 rviz2
 
   franka_ros2:
     build:
@@ -71,32 +30,45 @@ services:
     command: >
       bash -c "source /opt/ros/jazzy/setup.bash && source install/setup.bash && ros2 launch franka_fr3_moveit_config moveit.launch.py robot_ip:=dont-care use_fake_hardware:=true"
 
+  rviz:
+    extends:
+      service: base
+    image: "rviz:latest"
+    command: ros2 run rviz2 rviz2
+
   realsense:
     extends:
       service: base
     image: "realsense:latest"
+    device_cgroup_rules:
+      - 'c 81:* rmw'
+      - 'c 189:* rmw'
     command: ros2 launch realsense2_camera rs_launch.py pointcloud.enable:=true
   
   base:
     build: 
-      args:
-        - USER_UID=44
-        - USERNAME=user
       context: .
       dockerfile: Dockerfile
-    image: "base:latest"
-    device_cgroup_rules:
-      - 'c 81:* rmw'
-      - 'c 189:* rmw'
+      args:
+        - USER_UID=1001
+        - USER_GID=1001
+        - USERNAME=${USERNAME}
     network_mode: host
-    ipc: host  
-    init: true
-    tty: true
     privileged: true
+    tty: true
+    stdin_open: true
     environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
+      QT_X11_NO_MITSHM: 1
+      DISPLAY: ${DISPLAY}
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - /tmp/.docker.xauth:/tmp/.docker.xauth:rw
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev/shm:/dev/shm
       - /dev:/dev
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ros2 run demo_nodes_cpp talker
