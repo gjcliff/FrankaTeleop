@@ -1,24 +1,16 @@
-import os
 from launch import LaunchDescription
-from launch_ros.actions import Node
 from launch.actions import (
-    ExecuteProcess,
-    Shutdown,
     DeclareLaunchArgument,
     IncludeLaunchDescription,
 )
-from ament_index_python.packages import get_package_share_directory
-from moveit_configs_utils import MoveItConfigsBuilder
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
-    FindExecutable,
-    Command,
-    AndSubstitution,
 )
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -112,14 +104,10 @@ def generate_launch_description():
                         )
                     ]
                 ),
-                condition=IfCondition(
-                    LaunchConfiguration("run_franka_teleop")
-                ),
+                condition=IfCondition(LaunchConfiguration("run_franka_teleop")),
                 launch_arguments={
                     "robot_ip": LaunchConfiguration("robot_ip"),
-                    "use_fake_hardware": LaunchConfiguration(
-                        "use_fake_hardware"
-                    ),
+                    "use_fake_hardware": LaunchConfiguration("use_fake_hardware"),
                     "use_rviz": "false",
                 }.items(),
             ),

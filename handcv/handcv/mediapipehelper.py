@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+import os
+from typing import Any
 
+import cv2
+import numpy as np
+from ament_index_python import get_package_share_directory
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
@@ -7,21 +11,13 @@ from handcv.drawing_tools import (
     HAND_CONNECTIONS,
     NormalizedLandmark,
     NormalizedLandmarkList,
+    draw_landmarks,
     get_default_hand_connections_style,
     get_default_hand_landmarks_style,
-    draw_landmarks,
 )
 
-import numpy as np
-import cv2
-import os
-
-from ament_index_python import get_package_share_directory
-
-from typing import Any
 
 class MediaPipeRos:
-
     def __init__(self):
         self.MARGIN = 10  # pixels
         self.FONT_SIZE = 1
@@ -43,9 +39,7 @@ class MediaPipeRos:
             hand_landmarks_new_list = NormalizedLandmarkList()
             hand_landmarks_new_list.landmark.extend(
                 [
-                    NormalizedLandmark(
-                        x=landmark.x, y=landmark.y, z=landmark.z
-                    )
+                    NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z)
                     for landmark in hand_landmarks
                 ]
             )
@@ -88,9 +82,7 @@ class MediaPipeRos:
             "config/gesture_recognizer.task",
         )
 
-        base_options = python.BaseOptions(
-            model_asset_path="gesture_recognizer.task"
-        )
+        base_options = python.BaseOptions(model_asset_path=self.model_path)
         options = vision.GestureRecognizerOptions(
             base_options=base_options, num_hands=2
         )

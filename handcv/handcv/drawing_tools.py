@@ -1,9 +1,9 @@
-import enum
 import dataclasses
-import numpy as np
+import enum
 import math
+
 import cv2
-from typing import Mapping, Tuple, Optional, List, Union
+import numpy as np
 
 # from mediapipe.framework.formats import landmark_pb2
 
@@ -22,9 +22,7 @@ class NormalizedLandmark:
 
 @dataclasses.dataclass
 class NormalizedLandmarkList:
-    landmark: List[NormalizedLandmark] = dataclasses.field(
-        default_factory=list
-    )
+    landmark: list[NormalizedLandmark] = dataclasses.field(default_factory=list)
 
 
 class HandLandmark(enum.IntEnum):
@@ -87,7 +85,7 @@ BLUE_COLOR = (255, 0, 0)
 @dataclasses.dataclass
 class DrawingSpec:
     # Color for drawing the annotation. Default to the white color.
-    color: Tuple[int, int, int] = WHITE_COLOR
+    color: tuple[int, int, int] = WHITE_COLOR
     # Thickness for drawing the annotation. Default to 2 pixels.
     thickness: int = 2
     # Circle radius. Default to 2 pixels.
@@ -171,12 +169,8 @@ _HAND_LANDMARK_STYLE = {
 }
 
 _HAND_CONNECTION_STYLE = {
-    HAND_PALM_CONNECTIONS: DrawingSpec(
-        color=_GRAY, thickness=_THICKNESS_WRIST_MCP
-    ),
-    HAND_THUMB_CONNECTIONS: DrawingSpec(
-        color=_PEACH, thickness=_THICKNESS_FINGER
-    ),
+    HAND_PALM_CONNECTIONS: DrawingSpec(color=_GRAY, thickness=_THICKNESS_WRIST_MCP),
+    HAND_THUMB_CONNECTIONS: DrawingSpec(color=_PEACH, thickness=_THICKNESS_FINGER),
     HAND_INDEX_FINGER_CONNECTIONS: DrawingSpec(
         color=_PURPLE, thickness=_THICKNESS_FINGER
     ),
@@ -192,7 +186,7 @@ _HAND_CONNECTION_STYLE = {
 }
 
 
-def get_default_hand_landmarks_style() -> Mapping[int, DrawingSpec]:
+def get_default_hand_landmarks_style() -> dict[int, DrawingSpec]:
     """Returns the default hand landmarks drawing style.
 
     Returns:
@@ -205,9 +199,7 @@ def get_default_hand_landmarks_style() -> Mapping[int, DrawingSpec]:
     return hand_landmark_style
 
 
-def get_default_hand_connections_style() -> (
-    Mapping[Tuple[int, int], DrawingSpec]
-):
+def get_default_hand_connections_style() -> dict[tuple[int, int], DrawingSpec]:
     """Returns the default hand connections drawing style.
 
     Returns:
@@ -225,7 +217,7 @@ def _normalized_to_pixel_coordinates(
     normalized_y: float,
     image_width: int,
     image_height: int,
-) -> Union[None, Tuple[int, int]]:
+) -> None | tuple[int, int]:
     """Converts normalized value pair to pixel coordinates."""
 
     # Checks if the float value is between 0 and 1.
@@ -249,13 +241,12 @@ def draw_landmarks(
     logger,
     image: np.ndarray,
     landmark_list: NormalizedLandmarkList,
-    connections: Optional[List[Tuple[int, int]]] = None,
-    landmark_drawing_spec: Union[
-        DrawingSpec, Mapping[int, DrawingSpec]
-    ] = DrawingSpec(color=RED_COLOR),
-    connection_drawing_spec: Union[
-        DrawingSpec, Mapping[Tuple[int, int], DrawingSpec]
-    ] = DrawingSpec(),
+    connections: list[tuple[int, int]] | None = None,
+    landmark_drawing_spec: DrawingSpec | dict[int, DrawingSpec] = DrawingSpec(
+        color=RED_COLOR
+    ),
+    connection_drawing_spec: DrawingSpec
+    | dict[tuple[int, int], DrawingSpec] = DrawingSpec(),
     is_drawing_landmarks: bool = True,
 ):
     """Draws the landmarks and the connections on the image.
@@ -294,8 +285,7 @@ def draw_landmarks(
             landmark.HasField("visibility")
             and landmark.visibility < _VISIBILITY_THRESHOLD
         ) or (
-            landmark.HasField("presence")
-            and landmark.presence < _PRESENCE_THRESHOLD
+            landmark.HasField("presence") and landmark.presence < _PRESENCE_THRESHOLD
         ):
             logger.info("continuing")
             logger.info(
@@ -316,20 +306,15 @@ def draw_landmarks(
         for connection in connections:
             start_idx = connection[0]
             end_idx = connection[1]
-            if not (
-                0 <= start_idx < num_landmarks and 0 <= end_idx < num_landmarks
-            ):
+            if not (0 <= start_idx < num_landmarks and 0 <= end_idx < num_landmarks):
                 raise ValueError(
                     f"Landmark index is out of range. Invalid connection "
                     f"from landmark #{start_idx} to landmark #{end_idx}."
                 )
-            if (
-                start_idx in idx_to_coordinates
-                and end_idx in idx_to_coordinates
-            ):
+            if start_idx in idx_to_coordinates and end_idx in idx_to_coordinates:
                 drawing_spec = (
                     connection_drawing_spec[connection]
-                    if isinstance(connection_drawing_spec, Mapping)
+                    if isinstance(connection_drawing_spec, dict)
                     else connection_drawing_spec
                 )
                 cv2.line(
@@ -345,7 +330,7 @@ def draw_landmarks(
         for idx, landmark_px in idx_to_coordinates.items():
             drawing_spec = (
                 landmark_drawing_spec[idx]
-                if isinstance(landmark_drawing_spec, Mapping)
+                if isinstance(landmark_drawing_spec, dict)
                 else landmark_drawing_spec
             )
             # White circle border
